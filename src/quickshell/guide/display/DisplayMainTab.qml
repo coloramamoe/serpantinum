@@ -189,7 +189,7 @@ Item {
                 if (mList.length > 0) {
                     displayTabRoot.monitorsList = mList;
                     displayTabRoot.refreshDisplaySettings();
-                    displayTabRoot.applyAllMonitorsSettings();
+                    BlueLight.applyAll();
                 }
             }
         }
@@ -210,12 +210,9 @@ Item {
         Config.setSetting("display", current);
         displayTabRoot.displaySettings = JSON.parse(JSON.stringify(current));
 
-        let mSet = current.monitors[monName];
-        let isEn = mSet.enabled !== undefined ? mSet.enabled : false;
-        let isAu = mSet.auto !== undefined ? mSet.auto : false;
-        let temp = mSet.temperature !== undefined ? mSet.temperature : 50;
-
-        displayTabRoot.manageWarmProcess(monName, isEn, temp, isAu);
+        if (key === "enabled" || key === "auto" || key === "temperature") {
+            BlueLight.applyForMonitor(monName);
+        }
     }
 
     function applyMonitorPower(monName, enabled) {
@@ -273,36 +270,6 @@ Item {
         if (pendingMonName === monName) {
             updateMonitorSetting(monName, "temperature", pendingMonTemp);
             pendingMonName = "";
-        }
-    }
-
-    function applyAllMonitorsSettings() {
-        let ds = Config.getSetting("display", defaultDisplaySettings);
-        if (!ds || !ds.monitors) return;
-        for (let i = 0; i < monitorsList.length; i++) {
-            let mName = monitorsList[i].name;
-            let mSet = ds.monitors[mName];
-            if (mSet) {
-                let isEn = mSet.enabled !== undefined ? mSet.enabled : false;
-                let isAu = mSet.auto !== undefined ? mSet.auto : false;
-                let temp = mSet.temperature !== undefined ? mSet.temperature : 50;
-                manageWarmProcess(mName, isEn, temp, isAu);
-            }
-        }
-    }
-
-    function manageWarmProcess(monName, enabled, temp, autoMode) {
-        if (!monName) return;
-        if (enabled) {
-            let kelvin = Math.round(6500 - (temp / 100) * (6500 - 2500));
-            let modeStr = autoMode ? "auto" : "manual";
-            let genSet = Config.getSetting("general", {});
-            let loc = genSet.location || {};
-            let lat = loc.latitude !== undefined ? loc.latitude : 0;
-            let lon = loc.longitude !== undefined ? loc.longitude : 0;
-            Quickshell.execDetached(["bash", Caching.serpantinumDir + "/scripts/blue_light_filter.sh", "set", kelvin.toString(), monName, modeStr, lat.toString(), lon.toString()]);
-        } else {
-            Quickshell.execDetached(["bash", Caching.serpantinumDir + "/scripts/blue_light_filter.sh", "reset", monName]);
         }
     }
 
@@ -371,7 +338,7 @@ Item {
         target: Config
         function onSettingsLoaded() {
             displayTabRoot.refreshDisplaySettings();
-            displayTabRoot.applyAllMonitorsSettings();
+            BlueLight.applyAll();
         }
     }
 
