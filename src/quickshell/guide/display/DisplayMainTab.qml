@@ -94,6 +94,7 @@ Item {
         if (!validList || validList.length === 0) return 1.0;
         let best = validList[0];
         let bestDiff = Math.abs(validList[0] - target);
+
         for (let i = 1; i < validList.length; i++) {
             let diff = Math.abs(validList[i] - target);
             if (diff < bestDiff) {
@@ -101,6 +102,7 @@ Item {
                 bestDiff = diff;
             }
         }
+
         return best;
     }
 
@@ -121,8 +123,10 @@ Item {
                 let out = this.text;
                 if (!out) return;
                 let mList = [];
+
                 try {
                     let data = JSON.parse(out.trim());
+
                     if (displayTabRoot.compositor === "niri") {
                         let keys = Object.keys(data);
                         for (let i = 0; i < keys.length; i++) {
@@ -136,6 +140,7 @@ Item {
                             let rr = m.refresh_rate ? Math.round(m.refresh_rate / 1000) : 60;
                             let sc = item.scale !== undefined ? item.scale : 1.0;
                             let isOff = item.active === false || item.is_active === false || (modes.length > 0 && (item.current_mode === null || item.current_mode === undefined));
+
                             mList.push({
                                 name: k,
                                 dimensions: w + "x" + h,
@@ -155,6 +160,7 @@ Item {
                                 let rr = cm.refresh ? Math.round(cm.refresh / 1000) : 60;
                                 let sc = item.scale !== undefined ? item.scale : 1.0;
                                 let isOff = item.active === false;
+
                                 mList.push({
                                     name: name,
                                     dimensions: w + "x" + h,
@@ -174,6 +180,7 @@ Item {
                                 let rr = item.refreshRate ? Math.round(item.refreshRate) : 60;
                                 let sc = item.scale !== undefined ? item.scale : 1.0;
                                 let isOff = item.disabled === true;
+
                                 mList.push({
                                     name: name,
                                     dimensions: w + "x" + h,
@@ -186,6 +193,7 @@ Item {
                     }
                 } catch (e) {
                 }
+
                 if (mList.length > 0) {
                     displayTabRoot.monitorsList = mList;
                     displayTabRoot.refreshDisplaySettings();
@@ -202,6 +210,7 @@ Item {
 
     function updateMonitorSetting(monName, key, value) {
         if (!monName) return;
+
         let current = Config.getSetting("display", defaultDisplaySettings);
         if (!current.monitors) current.monitors = {};
         if (!current.monitors[monName]) current.monitors[monName] = {};
@@ -217,6 +226,7 @@ Item {
 
     function applyMonitorPower(monName, enabled) {
         if (!monName) return;
+
         if (displayTabRoot.compositor === "niri") {
             Quickshell.execDetached(["bash", "-c", enabled ? "niri msg output " + monName + " on" : "niri msg output " + monName + " off"]);
         } else if (displayTabRoot.compositor === "sway") {
@@ -225,6 +235,7 @@ Item {
             let mon = displayTabRoot.monitorsList.find(m => m.name === monName);
             let modeStr = mon ? (mon.dimensions + "@" + mon.framerate) : "preferred";
             let scaleVal = mon ? mon.scale : 1.0;
+
             if (enabled) {
                 let luaCmd =
                     'hl.monitor({' +
@@ -234,12 +245,12 @@ Item {
                     ' scale = ' + scaleVal.toString() + ',' +
                     ' disabled = false' +
                     ' })';
-            
+
                 Quickshell.execDetached(["bash", "-c", "hyprctl eval '" + luaCmd + "'"]);
             } else {
                 let luaCmd =
                     'hl.monitor({ output = "' + monName + '", disabled = true })';
-            
+
                 Quickshell.execDetached(["bash", "-c", "hyprctl eval '" + luaCmd + "'"]);
             }
         }
@@ -247,6 +258,7 @@ Item {
 
     function applyMonitorScale(monName, scaleVal) {
         if (!monName || !scaleVal) return;
+
         if (displayTabRoot.compositor === "niri") {
             Quickshell.execDetached(["bash", "-c", "niri msg output " + monName + " scale " + scaleVal.toString()]);
         } else if (displayTabRoot.compositor === "sway") {
@@ -255,6 +267,7 @@ Item {
             let mon = displayTabRoot.monitorsList.find(m => m.name === monName);
             let modeStr = mon ? (mon.dimensions + "@" + mon.framerate) : "preferred";
             let luaCmd = 'hl.monitor({ output = "' + monName + '", mode = "' + modeStr + '", position = "auto", scale = ' + scaleVal.toString() + ' })';
+
             Quickshell.execDetached(["bash", "-c", "hyprctl eval '" + luaCmd + "' || hyprctl keyword monitor " + monName + "," + modeStr + ",auto," + scaleVal.toString()]);
         }
     }
@@ -412,6 +425,7 @@ Item {
                     property int monWidth: parseInt(resDims[0]) || 1920
                     property int monHeight: parseInt(resDims[1]) || 1080
                     property var validScales: displayTabRoot.validScalesForResolution(monWidth, monHeight)
+
                     readonly property int currentScaleIndex: {
                         let i = validScales.indexOf(currentScale);
                         if (i >= 0) return i;
@@ -677,7 +691,7 @@ Item {
                                 Item {
                                     id: tempSectionWrapper
                                     Layout.fillWidth: true
-                                    property bool isOpen: !monDelegate.filterAuto
+                                    property bool isOpen: true
                                     clip: true
                                     visible: implicitHeight > 0
                                     opacity: isOpen ? 1.0 : 0.0
@@ -720,7 +734,9 @@ Item {
                                                     spacing: rootObj.s(2)
 
                                                     Text {
-                                                        text: I18n.t("guide.display.temperature.title")
+                                                        text: monDelegate.filterAuto
+                                                            ? I18n.t("guide.display.temperature.nightTitle", "Night Temperature Target")
+                                                            : I18n.t("guide.display.temperature.title")
                                                         font.family: ThemeBackend.fontFamily
                                                         font.pixelSize: rootObj.s(13)
                                                         color: ThemeBackend.text

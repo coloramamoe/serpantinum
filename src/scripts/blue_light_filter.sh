@@ -7,12 +7,14 @@ DAY_TEMP=6500
 UPDATE_INTERVAL=60
 PIDDIR="${XDG_RUNTIME_DIR:-/tmp}/quickshell-bluelight"
 
-source "$(dirname "$(realpath "${BASH_SOURCE[0]}")")/caching.sh"
+mkdir -p "$PIDDIR"
 
+source "$(dirname "$(realpath "${BASH_SOURCE[0]}")")/caching.sh"
 qs_ensure_cache "bluelight"
 
 VERBOSE=0
 ARGS=()
+
 while [[ $# -gt 0 ]]; do
     case "$1" in
         -v|--verbose)
@@ -116,16 +118,33 @@ gammarelay_ensure_running() {
 stop_auto_loop() {
     local output="${1:-}"
     mkdir -p "$PIDDIR"
-    local pidfile="$PIDDIR/auto-$(pid_key "$output").pid"
-    if [[ -f "$pidfile" ]]; then
-        local pid
-        pid="$(cat "$pidfile" 2>/dev/null || true)"
-        if [[ -n "$pid" ]] && kill -0 "$pid" 2>/dev/null; then
-            log "Stopping existing auto-schedule loop (pid $pid) for output '${output:-<all>}'."
-            kill "$pid" 2>/dev/null || true
+
+    local key pidfile paramfile lockfile
+    key="$(pid_key "$output")"
+    pidfile="$PIDDIR/auto-$key.pid"
+    paramfile="$PIDDIR/auto-$key.params"
+    lockfile="$PIDDIR/auto-$key.lock"
+
+    require_binary flock
+
+    (
+        flock -x 200
+        if [[ -f "$pidfile" ]]; then
+            local pid
+            pid="$(cat "$pidfile" 2>/dev/null || true)"
+            if [[ -n "$pid" ]] && kill -0 "$pid" 2>/dev/null; then
+                log "Stopping existing auto-schedule loop (pid $pid) for output '${output:-<all>}'."
+                kill "$pid" 2>/dev/null || true
+                for _ in 1 2 3 4 5 6 7 8 9 10; do
+                    kill -0 "$pid" 2>/dev/null || break
+                    sleep 0.05
+                done
+                kill -9 "$pid" 2>/dev/null || true
+            fi
+            rm -f "$pidfile"
         fi
-        rm -f "$pidfile"
-    fi
+        rm -f "$paramfile"
+    ) 200>"$lockfile"
 }
 
 calculate_solar_temp() {
@@ -158,7 +177,6 @@ calculate_solar_temp() {
             H = norm360(GMST + lon - RA)
             sinAlt = sin(torad(lat)) * sinDec + cos(torad(lat)) * cosDec * cos(torad(H))
             alt = todeg(asin_safe(sinAlt))
-
             low = -6.0
             high = 3.0
             if (alt <= low) {
@@ -207,24 +225,53 @@ gammarelay_set_auto() {
     local output="${2:-}"
     local lat="${3:-0}"
     local lon="${4:-0}"
-    local path
+
+    local path key pidfile paramfile lockfile
     path="$(object_path "$output")"
+    key="$(pid_key "$output")"
+    pidfile="$PIDDIR/auto-$key.pid"
+    paramfile="$PIDDIR/auto-$key.params"
+    lockfile="$PIDDIR/auto-$key.lock"
 
     require_binary busctl
+    require_binary flock
     gammarelay_ensure_running
-    stop_auto_loop "$output"
 
-    mkdir -p "$PIDDIR"
-    local pidfile="$PIDDIR/auto-$(pid_key "$output").pid"
+    (
+        flock -x 200
+        local new_params="${temp}|${lat}|${lon}"
 
-    log "Starting auto-schedule loop for $path (night_temp=$temp lat=$lat lon=$lon)."
-    if [[ "$VERBOSE" -eq 1 ]]; then
-        gammarelay_auto_loop "$path" "$temp" "$lat" "$lon" &
-    else
-        gammarelay_auto_loop "$path" "$temp" "$lat" "$lon" >/dev/null 2>&1 &
-    fi
-    disown
-    echo "$!" > "$pidfile"
+        if [[ -f "$pidfile" ]]; then
+            local old_pid old_params
+            old_pid="$(cat "$pidfile" 2>/dev/null || true)"
+            old_params="$(cat "$paramfile" 2>/dev/null || true)"
+
+            if [[ -n "$old_pid" ]] && kill -0 "$old_pid" 2>/dev/null; then
+                if [[ "$old_params" == "$new_params" ]]; then
+                    log "Auto loop already running with identical params; leaving it alone."
+                    exit 0
+                fi
+
+                kill "$old_pid" 2>/dev/null || true
+                for _ in 1 2 3 4 5 6 7 8 9 10; do
+                    kill -0 "$old_pid" 2>/dev/null || break
+                    sleep 0.05
+                done
+                kill -9 "$old_pid" 2>/dev/null || true
+            fi
+        fi
+
+        if [[ "$VERBOSE" -eq 1 ]]; then
+            gammarelay_auto_loop "$path" "$temp" "$lat" "$lon" &
+        else
+            gammarelay_auto_loop "$path" "$temp" "$lat" "$lon" >/dev/null 2>&1 &
+        fi
+        disown
+
+        echo "$!" > "$pidfile"
+        echo "$new_params" > "$paramfile"
+        log "Started auto loop pid=$! for $path (night_temp=$temp lat=$lat lon=$lon)."
+    ) 200>"$lockfile"
 }
 
 gammarelay_set() {
@@ -293,14 +340,17 @@ case "$CMD" in
         mode="${3:-manual}"
         lat="${4:-0}"
         lon="${5:-0}"
+
         if ! [[ "$temp" =~ ^[0-9]+$ ]] || (( temp < TEMP_MIN || temp > TEMP_MAX )); then
             log "Temperature $temp is outside valid range ($TEMP_MIN-$TEMP_MAX)."
             exit 1
         fi
+
         if ! [[ "$lat" =~ ^-?[0-9]+(\.[0-9]+)?$ ]] || ! [[ "$lon" =~ ^-?[0-9]+(\.[0-9]+)?$ ]]; then
             log "Latitude '$lat' or longitude '$lon' is not a valid number."
             exit 1
         fi
+
         gammarelay_set "$temp" "$output" "$mode" "$lat" "$lon"
         ;;
     reset)

@@ -19,16 +19,23 @@ Item {
     function getCoordinates() {
         let lat = 0;
         let lon = 0;
-        if (typeof Location !== "undefined" && Location.locationData) {
-            if (Location.locationData.latitude !== undefined) lat = Location.locationData.latitude;
-            if (Location.locationData.longitude !== undefined) lon = Location.locationData.longitude;
+
+        if (typeof Location !== "undefined") {
+            lat = Location.latitude;
+            lon = Location.longitude;
         }
+
         if (lat === 0 && lon === 0) {
             let genSet = Config.getSetting("general", {});
             let loc = genSet.location || {};
-            if (loc.latitude !== undefined) lat = loc.latitude;
-            if (loc.longitude !== undefined) lon = loc.longitude;
+            if (loc.latitude !== undefined) lat = Number(loc.latitude);
+            if (loc.longitude !== undefined) lon = Number(loc.longitude);
         }
+
+        if (lat === 0 && lon === 0) {
+            console.warn("BlueLight: location unset — auto schedule will use Null Island as reference and won't match your real sunrise/sunset. Set location in Settings.");
+        }
+
         return { "lat": lat, "lon": lon };
     }
 
@@ -39,10 +46,12 @@ Item {
 
     function apply(monName, enabled, temp, autoMode) {
         if (!monName || !Caching.serpantinumDir) return;
+
         if (enabled) {
             let kelvin = kelvinFromTemp(temp);
             let modeStr = autoMode ? "auto" : "manual";
             let coords = getCoordinates();
+
             Quickshell.execDetached([
                 "bash",
                 Caching.serpantinumDir + "/scripts/blue_light_filter.sh",
@@ -70,6 +79,7 @@ Item {
         let isEn = mSet.enabled !== undefined ? mSet.enabled : false;
         let isAu = mSet.auto !== undefined ? mSet.auto : false;
         let temp = mSet.temperature !== undefined ? mSet.temperature : 50;
+
         apply(monName, isEn, temp, isAu);
     }
 
@@ -87,6 +97,7 @@ Item {
 
     function reset(monName) {
         if (!monName || !Caching.serpantinumDir) return;
+
         Quickshell.execDetached([
             "bash",
             Caching.serpantinumDir + "/scripts/blue_light_filter.sh",
@@ -97,6 +108,7 @@ Item {
 
     function updateMonitorSetting(monName, key, value) {
         if (!monName) return;
+
         let current = Config.getSetting("display", defaultDisplaySettings);
         if (!current.monitors) current.monitors = {};
         if (!current.monitors[monName]) current.monitors[monName] = {};
@@ -115,6 +127,7 @@ Item {
     function applyAll() {
         let ds = Config.getSetting("display", defaultDisplaySettings);
         if (!ds || !ds.monitors) return;
+
         let keys = Object.keys(ds.monitors);
         for (let i = 0; i < keys.length; i++) {
             let mName = keys[i];

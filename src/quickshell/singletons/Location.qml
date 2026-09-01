@@ -98,4 +98,10 @@ Item {
             root.isDetecting = false;
         }
     }
+
+    Component.onCompleted: {
+        if (root.source !== "manual" && (root.latitude === 0 && root.longitude === 0)) {
+            root.detectAuto();
+        }
+    }
 }
