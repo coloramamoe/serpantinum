@@ -1101,7 +1101,7 @@ PanelWindow {
                             Text {
                                 id: textMeasure
                                 visible: false
-                                width: Math.max(10, clipboardWindow.baseLauncherWidth - clipboardWindow.s(100))
+                                width: Math.max(10, clipboardWindow.baseLauncherWidth - clipboardWindow.s(96))
                                 text: (model && model.content) ? model.content : ""
                                 font.family: ThemeBackend.fontFamily
                                 font.pixelSize: clipboardWindow.s(12)
@@ -1175,12 +1175,8 @@ PanelWindow {
                                     let c = (model && model.content) ? model.content : "";
                                     if (c.indexOf("\n") !== -1) return true;
                                     if (c.length > 45) return true;
-                                    if (clipSummaryText.truncated) return true;
-                                    if (clipSummaryText.lineCount >= 2) return true;
-                                    if (clipSummaryText.paintedHeight > clipSummaryContainer.height - 2) return true;
-                                    if (clipSummaryText.implicitHeight > clipSummaryContainer.height - 2) return true;
-                                    if (textMeasure.lineCount > 2) return true;
-                                    if (textMeasure.paintedHeight > clipboardWindow.s(32) + 2) return true;
+                                    if (textMeasure.lineCount >= 2) return true;
+                                    if (textMeasure.paintedHeight > clipboardWindow.s(18)) return true;
                                     return false;
                                 }
                                 readonly property real baseH: clipboardWindow.s(52)
