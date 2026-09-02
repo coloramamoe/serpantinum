@@ -881,12 +881,14 @@ PanelWindow {
                 anchors.fill: parent
                 anchors.margins: clipboardWindow.s(14)
 
+                readonly property bool isSearchAtBottom: clipboardWindow.attachEdge === "bottom"
+
                 RowLayout {
                     id: searchRow
+                    z: 10
                     anchors.left: parent.left
                     anchors.right: parent.right
-                    anchors.top: clipboardWindow.attachEdge === "bottom" ? undefined : parent.top
-                    anchors.bottom: clipboardWindow.attachEdge === "bottom" ? parent.bottom : undefined
+                    y: contentContainer.isSearchAtBottom ? (parent.height - height) : 0
                     height: clipboardWindow.s(36)
                     spacing: clipboardWindow.s(8)
 
@@ -894,6 +896,7 @@ PanelWindow {
                         id: searchInput
                         focus: true
                         Layout.fillWidth: true
+                        Layout.minimumWidth: 0
                         Layout.preferredHeight: clipboardWindow.s(36)
 
                         baseColor: ThemeBackend.surface0
@@ -963,7 +966,7 @@ PanelWindow {
                         Layout.preferredHeight: clipboardWindow.s(36)
                         horizontalPadding: clipboardWindow.s(10)
                         cornerRadius: Math.min(ThemeBackend.borderRadius, clipboardWindow.s(10))
-                        buttonText: I18n.t("clipboard.clear") || "Clear"
+                        buttonText: typeof I18n !== "undefined" ? (I18n.t("clipboard.clear") || "Clear") : "Clear"
                         textFontSize: clipboardWindow.s(11)
                         buttonIcon: "󰆴"
                         iconFontSize: clipboardWindow.s(14)
@@ -979,12 +982,11 @@ PanelWindow {
 
                 Item {
                     id: listContainer
+                    z: 1
                     anchors.left: parent.left
                     anchors.right: parent.right
-                    anchors.top: clipboardWindow.attachEdge === "bottom" ? parent.top : searchRow.bottom
-                    anchors.bottom: clipboardWindow.attachEdge === "bottom" ? searchRow.top : parent.bottom
-                    anchors.topMargin: clipboardWindow.attachEdge === "bottom" ? 0 : clipboardWindow.s(10)
-                    anchors.bottomMargin: clipboardWindow.attachEdge === "bottom" ? clipboardWindow.s(10) : 0
+                    y: contentContainer.isSearchAtBottom ? 0 : (searchRow.height + clipboardWindow.s(10))
+                    height: Math.max(0, parent.height - searchRow.height - clipboardWindow.s(10))
                     clip: true
 
                     ListView {
@@ -1473,8 +1475,7 @@ PanelWindow {
                                         }
 
                                         MouseArea {
-                                            width: clipFlickable.width
-                                            height: Math.max(clipFlickable.height, clipPreviewText.implicitHeight)
+                                            anchors.fill: parent
                                             cursorShape: Qt.PointingHandCursor
                                             acceptedButtons: Qt.LeftButton | Qt.RightButton
                                             onClicked: (mouse) => {
