@@ -45,14 +45,14 @@ show_help() {
     echo "$(t "daemon.cli.description")"
     echo ""
     echo "$(t "daemon.cli.commands")"
-    echo "  start                $(t "daemon.cli.cmd_start")"
-    echo "  stop                 $(t "daemon.cli.cmd_stop")"
-    echo "  status               $(t "daemon.cli.cmd_status")"
+    echo "  start                 $(t "daemon.cli.cmd_start")"
+    echo "  stop                  $(t "daemon.cli.cmd_stop")"
+    echo "  status                $(t "daemon.cli.cmd_status")"
     echo ""
     echo "$(t "daemon.cli.options")"
-    echo "  -v, --verbose        $(t "daemon.cli.opt_verbose")"
-    echo "  -V, --version        $(t "daemon.cli.opt_version")"
-    echo "  -h, --help           $(t "daemon.cli.opt_help")"
+    echo "  -v, --verbose         $(t "daemon.cli.opt_verbose")"
+    echo "  -V, --version         $(t "daemon.cli.opt_version")"
+    echo "  -h, --help            $(t "daemon.cli.opt_help")"
     echo ""
 }
 
@@ -97,6 +97,8 @@ if [ "$COMMAND" == "stop" ]; then
         pkill -TERM -f "serpantinumd" 2>/dev/null
     fi
     pkill -f "focus_daemon.py" 2>/dev/null
+    rm -f "/tmp/serpantinumd.pid" 2>/dev/null
+    rm -f "/tmp/serpantinumd.lock" 2>/dev/null
     echo "$(t "daemon.cli.stopped")"
     exit 0
 fi
@@ -147,8 +149,8 @@ if [ "$COMMAND" == "start" ]; then
         done
 
         pkill -f "focus_daemon.py" 2>/dev/null
-        rm -f "/tmp/serpantinumd.pid"
-        rm -f "/tmp/serpantinumd.lock"
+        rm -f "/tmp/serpantinumd.pid" 2>/dev/null
+        rm -f "/tmp/serpantinumd.lock" 2>/dev/null
         exit 0
     }
 
