@@ -122,7 +122,7 @@ Item {
     Process {
         id: kbWatcher
         running: true
-        command: ["bash", Caching.qsDir + "/../scripts/kb_locks.sh", "watch"]
+        command: ["bash", Caching.qsDir + "/watchers/kb_locks.sh", "watch"]
         stdout: SplitParser {
             onRead: data => {
                 let line = data.trim();

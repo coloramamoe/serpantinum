@@ -78,26 +78,35 @@ pid_key() {
     fi
 }
 
-object_path() {
-    local output="${1:-}"
-    if [[ -n "$output" ]]; then
-        echo "/outputs/$(sanitize_output "$output")"
-    else
-        echo "/"
-    fi
-}
-
 output_exists() {
     local path="$1"
     busctl --user introspect rs.wl-gammarelay "$path" >/dev/null 2>&1
 }
 
+object_path() {
+    local output="${1:-}"
+    if [[ -n "$output" ]]; then
+        local candidate="/outputs/$(sanitize_output "$output")"
+        if output_exists "$candidate"; then
+            echo "$candidate"
+            return
+        fi
+    fi
+    echo "/"
+}
+
 wait_for_output_path() {
     local path="$1"
-    local timeout="${2:-50}"
+    local timeout="${2:-2}"
+    if output_exists "$path"; then
+        return 0
+    fi
+    if ! output_exists "/outputs"; then
+        return 1
+    fi
     local i=0
     while ! output_exists "$path" && (( i < timeout )); do
-        sleep 0.1
+        sleep 0.01
         i=$((i+1))
     done
     output_exists "$path"
@@ -109,6 +118,14 @@ set_property_safe() {
     local type="$3"
     local val="$4"
 
+    if [[ "$prop" == "Temperature" ]]; then
+        local cur
+        cur="$(busctl --user get-property rs.wl-gammarelay "$path" rs.wl.gammarelay Temperature 2>/dev/null | awk '{print $2}' || true)"
+        if [[ -n "$cur" && "$cur" == "$val" ]]; then
+            return 0
+        fi
+    fi
+
     if ! busctl --user set-property rs.wl-gammarelay "$path" rs.wl.gammarelay "$prop" "$type" "$val" >/dev/null 2>&1; then
         log "Failed to set $prop on $path."
         return 1
@@ -116,45 +133,111 @@ set_property_safe() {
 }
 
 gammarelay_running() {
-    busctl --user status rs.wl-gammarelay >/dev/null 2>&1
+    busctl --user get-property rs.wl-gammarelay / rs.wl.gammarelay Temperature >/dev/null 2>&1
+}
+
+ensure_single_gammarelay() {
+    if gammarelay_running; then
+        local pids
+        pids="$(pgrep -x wl-gammarelay-rs 2>/dev/null || true)"
+        local count=0
+        if [[ -n "$pids" ]]; then
+            count="$(echo "$pids" | wc -w)"
+        fi
+        if (( count <= 1 )); then
+            return 0
+        fi
+    fi
+
+    local pids
+    pids="$(pgrep -x wl-gammarelay-rs 2>/dev/null || true)"
+    local count=0
+    if [[ -n "$pids" ]]; then
+        count="$(echo "$pids" | wc -w)"
+    fi
+
+    if (( count > 1 )); then
+        pkill -9 -x wl-gammarelay-rs 2>/dev/null || true
+        local i=0
+        while pgrep -x wl-gammarelay-rs >/dev/null 2>&1 && (( i < 15 )); do
+            sleep 0.01
+            i=$((i+1))
+        done
+    elif (( count == 1 )); then
+        local i=0
+        while ! gammarelay_running && (( i < 10 )); do
+            sleep 0.01
+            i=$((i+1))
+        done
+        if ! gammarelay_running; then
+            pkill -9 -x wl-gammarelay-rs 2>/dev/null || true
+            i=0
+            while pgrep -x wl-gammarelay-rs >/dev/null 2>&1 && (( i < 15 )); do
+                sleep 0.01
+                i=$((i+1))
+            done
+        fi
+    fi
 }
 
 gammarelay_start() {
+    local target_temp="${1:-}"
     require_binary wl-gammarelay-rs
+
     log "Starting wl-gammarelay-rs."
-    if [[ "$VERBOSE" -eq 1 ]]; then
-        nohup wl-gammarelay-rs >/dev/null 200>&- &
-    else
-        nohup wl-gammarelay-rs >/dev/null 2>&1 200>&- &
-    fi
+    nohup wl-gammarelay-rs </dev/null >/dev/null 2>&1 &
     disown
     local i=0
-    while ! gammarelay_running && (( i < 30 )); do
-        sleep 0.1
+    while ! gammarelay_running && (( i < 50 )); do
+        sleep 0.01
         i=$((i+1))
     done
+
+    if [[ -n "$target_temp" ]] && gammarelay_running; then
+        busctl --user set-property rs.wl-gammarelay / rs.wl.gammarelay Temperature q "$target_temp" >/dev/null 2>&1 || true
+    fi
 }
 
 gammarelay_ensure_running() {
-    if ! gammarelay_running; then
-        gammarelay_start
+    local target_temp="${1:-}"
+    if gammarelay_running; then
+        return 0
     fi
+
+    mkdir -p "$PIDDIR"
+    local daemon_lock="$PIDDIR/daemon.lock"
+    exec 201>"$daemon_lock"
+    flock 201
+
+    if ! gammarelay_running; then
+        ensure_single_gammarelay
+        if ! gammarelay_running; then
+            gammarelay_start "$target_temp"
+        fi
+    fi
+
+    flock -u 201 2>/dev/null || true
+    exec 201>&-
 }
 
 gammarelay_ensure_output_ready() {
-    local path="$1"
-    gammarelay_ensure_running
+    local output="${1:-}"
+    local target_temp="${2:-}"
 
-    if [[ "$path" == "/" ]]; then
+    gammarelay_ensure_running "$target_temp"
+
+    if [[ -z "$output" ]]; then
+        echo "/"
         return 0
     fi
 
-    if wait_for_output_path "$path" 50; then
+    local candidate="/outputs/$(sanitize_output "$output")"
+    if wait_for_output_path "$candidate" 2; then
+        echo "$candidate"
         return 0
     fi
 
-    log "Output object $path never appeared on the bus."
-    return 1
+    echo "/"
 }
 
 stop_pid_confirmed() {
@@ -162,40 +245,27 @@ stop_pid_confirmed() {
     if [[ -z "$pid" ]]; then
         return 0
     fi
-    kill "$pid" 2>/dev/null || true
-    pkill -P "$pid" 2>/dev/null || true
+    kill -9 "$pid" 2>/dev/null || true
+    pkill -9 -P "$pid" 2>/dev/null || true
     local i=0
-    while kill -0 "$pid" 2>/dev/null && (( i < 20 )); do
-        sleep 0.05
+    while kill -0 "$pid" 2>/dev/null && (( i < 5 )); do
+        sleep 0.01
         i=$((i+1))
     done
-    if kill -0 "$pid" 2>/dev/null; then
-        kill -9 "$pid" 2>/dev/null || true
-        pkill -9 -P "$pid" 2>/dev/null || true
-    fi
 }
 
 stop_auto_loop() {
     local output="${1:-}"
     mkdir -p "$PIDDIR"
-    if [[ -n "$output" ]]; then
-        local pidfile="$PIDDIR/auto-$(pid_key "$output").pid"
+    pkill -9 -f "gammarelay_auto_loop" 2>/dev/null || true
+    for pidfile in "$PIDDIR"/auto-*.pid; do
         if [[ -f "$pidfile" ]]; then
             local pid
             pid="$(cat "$pidfile" 2>/dev/null || true)"
             stop_pid_confirmed "$pid"
             rm -f "$pidfile"
         fi
-    else
-        for pidfile in "$PIDDIR"/auto-*.pid; do
-            if [[ -f "$pidfile" ]]; then
-                local pid
-                pid="$(cat "$pidfile" 2>/dev/null || true)"
-                stop_pid_confirmed "$pid"
-                rm -f "$pidfile"
-            fi
-        done
-    fi
+    done
 }
 
 calculate_solar_temp() {
@@ -269,12 +339,14 @@ calculate_solar_temp() {
 }
 
 gammarelay_auto_loop() {
-    local path="$1"
+    local output="${1:-}"
     local night_temp="$2"
     local lat="$3"
     local lon="$4"
 
     while :; do
+        local path
+        path="$(object_path "$output")"
         if [[ "$path" == "/" ]] || output_exists "$path"; then
             local temp
             temp="$(calculate_solar_temp "$lat" "$lon" "$night_temp" "$DAY_TEMP")"
@@ -287,17 +359,12 @@ gammarelay_auto_loop() {
 gammarelay_set_manual() {
     local temp="$1"
     local output="${2:-}"
-    local path
-    path="$(object_path "$output")"
 
     require_binary busctl
     stop_auto_loop "$output"
 
-    if ! gammarelay_ensure_output_ready "$path"; then
-        log "Not touching $path — output not ready."
-        return 1
-    fi
-
+    local path
+    path="$(gammarelay_ensure_output_ready "$output" "$temp")"
     log "Setting manual temperature $temp on $path."
     set_property_safe "$path" Temperature q "$temp"
 }
@@ -307,30 +374,22 @@ gammarelay_set_auto() {
     local output="${2:-}"
     local lat="${3:-0}"
     local lon="${4:-0}"
-    local path
-    path="$(object_path "$output")"
 
     require_binary busctl
     stop_auto_loop "$output"
 
-    if ! gammarelay_ensure_output_ready "$path"; then
-        log "Not starting auto-schedule for $path — output never appeared."
-        return 1
-    fi
-
     local current_auto_temp
     current_auto_temp="$(calculate_solar_temp "$lat" "$lon" "$temp" "$DAY_TEMP")"
+
+    local path
+    path="$(gammarelay_ensure_output_ready "$output" "$current_auto_temp")"
     set_property_safe "$path" Temperature q "$current_auto_temp"
 
     mkdir -p "$PIDDIR"
     local pidfile="$PIDDIR/auto-$(pid_key "$output").pid"
 
-    log "Starting auto-schedule loop for $path (night_temp=$temp lat=$lat lon=$lon current=$current_auto_temp)."
-    if [[ "$VERBOSE" -eq 1 ]]; then
-        gammarelay_auto_loop "$path" "$temp" "$lat" "$lon" 200>&- &
-    else
-        gammarelay_auto_loop "$path" "$temp" "$lat" "$lon" >/dev/null 2>&1 200>&- &
-    fi
+    log "Starting auto-schedule loop for $output (night_temp=$temp lat=$lat lon=$lon current=$current_auto_temp)."
+    nohup bash -c "calculate_solar_temp() { $(declare -f calculate_solar_temp); calculate_solar_temp \"\$@\"; }; set_property_safe() { $(declare -f set_property_safe); set_property_safe \"\$@\"; }; output_exists() { $(declare -f output_exists); output_exists \"\$@\"; }; sanitize_output() { $(declare -f sanitize_output); sanitize_output \"\$@\"; }; object_path() { $(declare -f object_path); object_path \"\$@\"; }; UPDATE_INTERVAL=$UPDATE_INTERVAL; DAY_TEMP=$DAY_TEMP; $(declare -f gammarelay_auto_loop); gammarelay_auto_loop '$output' '$temp' '$lat' '$lon'" </dev/null >/dev/null 2>&1 &
     local loop_pid=$!
     echo "$loop_pid" > "$pidfile"
     disown "$loop_pid" 2>/dev/null || true
@@ -362,8 +421,6 @@ gammarelay_set() {
 
 gammarelay_reset() {
     local output="${1:-}"
-    local path
-    path="$(object_path "$output")"
 
     mkdir -p "$PIDDIR"
     local lockfile="$PIDDIR/lock-$(pid_key "$output").lock"
@@ -375,18 +432,13 @@ gammarelay_reset() {
     stop_auto_loop "$output"
 
     if ! gammarelay_running; then
-        log "wl-gammarelay-rs is not running."
         flock -u 200 2>/dev/null || true
         exec 200>&-
         return 0
     fi
 
-    if [[ "$path" != "/" ]] && ! output_exists "$path"; then
-        log "Output object $path not present; nothing to reset."
-        flock -u 200 2>/dev/null || true
-        exec 200>&-
-        return 0
-    fi
+    local path
+    path="$(object_path "$output")"
 
     log "Resetting $path to neutral temperature and full brightness."
     set_property_safe "$path" Temperature q "$DAY_TEMP" || ret=$?
@@ -401,13 +453,15 @@ gammarelay_reset() {
 
 gammarelay_status() {
     local output="${1:-}"
-    local path
-    path="$(object_path "$output")"
+    ensure_single_gammarelay
 
     if ! gammarelay_running; then
         echo "stopped"
         return
     fi
+
+    local path
+    path="$(object_path "$output")"
 
     if [[ "$VERBOSE" -eq 1 ]]; then
         local temp brightness

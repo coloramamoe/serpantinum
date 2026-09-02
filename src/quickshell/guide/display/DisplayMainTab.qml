@@ -6,6 +6,7 @@ import Quickshell.Io
 import "../../"
 import "../../reusables"
 import "../../info"
+import "../../singletons"
 
 Item {
     id: displayTabRoot
@@ -514,6 +515,14 @@ Item {
     Connections {
         target: typeof Location !== "undefined" ? Location : null
         function onLocationUpdated() {
+            displayTabRoot.refreshDisplaySettings();
+        }
+    }
+
+    Connections {
+        target: typeof BlueLight !== "undefined" ? BlueLight : null
+        ignoreUnknownSignals: true
+        function onSettingsChanged() {
             displayTabRoot.refreshDisplaySettings();
         }
     }
