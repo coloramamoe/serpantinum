@@ -53,6 +53,7 @@ Rectangle {
         workspacesWidgetRoot.isSway = de.indexOf("sway") !== -1;
         if (workspacesWidgetRoot.isNiri && workspacesWidgetRoot.moduleActive) {
             niriPoller.running = true;
+            niriEventStream.running = true;
         }
         if (workspacesWidgetRoot.isSway && workspacesWidgetRoot.moduleActive) {
             swayPoller.running = true;
@@ -63,7 +64,9 @@ Rectangle {
         if (!moduleActive) {
             if (isNiri) {
                 niriPoller.running = false;
-                niriWaiter.running = false;
+                niriDebounceTimer.stop();
+                niriRestartTimer.stop();
+                niriEventStream.running = false;
             }
             if (isSway) {
                 swayPoller.running = false;
@@ -73,10 +76,55 @@ Rectangle {
             if (isNiri) {
                 niriPoller.running = false;
                 niriPoller.running = true;
+                niriEventStream.running = false;
+                niriEventStream.running = true;
             }
             if (isSway) {
                 swayPoller.running = false;
                 swayPoller.running = true;
+            }
+        }
+    }
+
+    Timer {
+        id: niriDebounceTimer
+        interval: 50
+        repeat: false
+        onTriggered: {
+            if (workspacesWidgetRoot.moduleActive && workspacesWidgetRoot.isNiri) {
+                niriPoller.running = false;
+                niriPoller.running = true;
+            }
+        }
+    }
+
+    Timer {
+        id: niriRestartTimer
+        interval: 1000
+        repeat: false
+        onTriggered: {
+            if (workspacesWidgetRoot.moduleActive && workspacesWidgetRoot.isNiri) {
+                niriEventStream.running = false;
+                niriEventStream.running = true;
+            }
+        }
+    }
+
+    Process {
+        id: niriEventStream
+        running: false
+        command: ["niri", "msg", "--json", "event-stream"]
+        stdout: SplitParser {
+            splitMarker: "\n"
+            onRead: data => {
+                if (data.trim().length > 0) {
+                    niriDebounceTimer.restart();
+                }
+            }
+        }
+        onExited: {
+            if (workspacesWidgetRoot.moduleActive && workspacesWidgetRoot.isNiri) {
+                niriRestartTimer.restart();
             }
         }
     }
@@ -116,27 +164,6 @@ Rectangle {
                     workspacesWidgetRoot.niriActiveIndex = activeIdx;
                     workspacesWidgetRoot.niriOccupiedMap = occ;
                 } catch (e) {}
-
-                niriWaiter.running = false;
-                if (workspacesWidgetRoot.moduleActive && workspacesWidgetRoot.isNiri) {
-                    niriWaiter.running = true;
-                }
-            }
-        }
-    }
-
-    Process {
-        id: niriWaiter
-        running: false
-        command: [
-            "bash",
-            "-c",
-            "niri msg --json event-stream 2>/dev/null | grep -m 1 -E '\"(WorkspacesChanged|WorkspaceActivated|WindowOpenedOrChanged|WindowClosed|WindowFocusChanged)\"'"
-        ]
-        onExited: {
-            niriPoller.running = false;
-            if (workspacesWidgetRoot.moduleActive && workspacesWidgetRoot.isNiri) {
-                niriPoller.running = true;
             }
         }
     }
