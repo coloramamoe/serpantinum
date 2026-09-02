@@ -77,7 +77,7 @@ Variants {
             }
             property bool isFill: barStyle === "fill"
             property bool isSolid: barStyle === "solid" || barStyle === "fill"
-            
+
             property bool barConfigReady: {
                 let dummy = configRevision;
                 if (typeof Config === "undefined" || !Config.dataReady || !Config.rawSettings) return false;
@@ -196,11 +196,14 @@ Variants {
             property real effectiveBarWidth: Math.round(isVertical ? barWindow.width : (isFill ? barWindow.width : ((barWindow.width - (autohide ? edgePadding * 2 : 0)) * (barWidthPercent / 100.0))))
             property real horizontalOffset: Math.round(isVertical ? 0 : (isFill ? 0 : ((barWindow.width - effectiveBarWidth) / 2)))
 
+            property real effectiveBarHeight: Math.round(!isVertical ? barWindow.height : (isFill ? barWindow.height : ((barWindow.height - (autohide ? edgePadding * 2 : 0)) * (barWidthPercent / 100.0))))
+            property real verticalOffset: Math.round(!isVertical ? 0 : (isFill ? 0 : ((barWindow.height - effectiveBarHeight) / 2)))
+
             property real currentBarMinX: contentWrapper ? contentWrapper.dynamicMinX : horizontalOffset
             property real currentBarMaxX: contentWrapper ? contentWrapper.dynamicMaxX : (horizontalOffset + effectiveBarWidth)
 
-            property real currentBarMinY: verticalWrapper ? verticalWrapper.dynamicMinY : 0
-            property real currentBarMaxY: verticalWrapper ? verticalWrapper.dynamicMaxY : barWindow.height
+            property real currentBarMinY: verticalWrapper ? verticalWrapper.dynamicMinY : verticalOffset
+            property real currentBarMaxY: verticalWrapper ? verticalWrapper.dynamicMaxY : (verticalOffset + effectiveBarHeight)
 
             Timer {
                 id: positionChangeTimer
@@ -252,7 +255,7 @@ Variants {
             exclusiveZone: (!barConfigReady || autohide || isRedacting) ? 0 : barHeight
             color: "transparent"
 
-            property real activeMaskHeight: isRedacting ? 0 : ((autohide && !isRevealed) ? s(4) : (isVertical ? barWindow.height : (isFill ? (barHeight + cornerRadius) : (barHeight + edgePadding))))
+            property real activeMaskHeight: isRedacting ? 0 : ((autohide && !isRevealed) ? s(4) : (isVertical ? (isFill ? barWindow.height : (effectiveBarHeight + edgePadding * 2)) : (isFill ? (barHeight + cornerRadius) : (barHeight + edgePadding))))
             property real activeMaskWidth: isRedacting ? 0 : ((autohide && !isRevealed) ? s(4) : (isVertical ? (isFill ? (barHeight + cornerRadius) : (barHeight + edgePadding)) : (isFill ? barWindow.width : (effectiveBarWidth + edgePadding * 2))))
 
             mask: Region {

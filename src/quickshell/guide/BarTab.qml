@@ -344,7 +344,7 @@ Item {
                     var info = getModuleInfo(arr[i]);
                     info.groupId = "";
                     model.append(info);
-                    used[arr[i]] = true;
+                    used[arr[i][j]] = true;
                 }
             }
         }
@@ -1207,8 +1207,38 @@ Item {
                                 ColumnLayout {
                                     Layout.fillWidth: true
                                     spacing: rootObj.s(2)
-                                    Text { text: I18n.t("guide.bar.width.title"); font.family: ThemeBackend.fontFamily; font.pixelSize: rootObj.s(13); color: ThemeBackend.text }
-                                    Text { text: I18n.t("guide.bar.width.desc"); font.family: ThemeBackend.fontFamily; font.pixelSize: rootObj.s(11); color: ThemeBackend.subtext0 }
+                                    Text {
+                                        text: {
+                                            if (barTabRoot.barPosition === "left" || barTabRoot.barPosition === "right") {
+                                                let h = I18n.t("guide.bar.height.title");
+                                                if (h && h !== "guide.bar.height.title") return h;
+                                                let w = I18n.t("guide.bar.width.title");
+                                                if (w && w.indexOf("Width") !== -1) return w.replace("Width", "Height");
+                                                if (w && w.indexOf("width") !== -1) return w.replace("width", "height");
+                                                return w;
+                                            }
+                                            return I18n.t("guide.bar.width.title");
+                                        }
+                                        font.family: ThemeBackend.fontFamily
+                                        font.pixelSize: rootObj.s(13)
+                                        color: ThemeBackend.text
+                                    }
+                                    Text {
+                                        text: {
+                                            if (barTabRoot.barPosition === "left" || barTabRoot.barPosition === "right") {
+                                                let h = I18n.t("guide.bar.height.desc");
+                                                if (h && h !== "guide.bar.height.desc") return h;
+                                                let w = I18n.t("guide.bar.width.desc");
+                                                if (w && w.indexOf("Width") !== -1) return w.replace("Width", "Height");
+                                                if (w && w.indexOf("width") !== -1) return w.replace("width", "height");
+                                                return w;
+                                            }
+                                            return I18n.t("guide.bar.width.desc");
+                                        }
+                                        font.family: ThemeBackend.fontFamily
+                                        font.pixelSize: rootObj.s(11)
+                                        color: ThemeBackend.subtext0
+                                    }
                                 }
 
                                 RowLayout {

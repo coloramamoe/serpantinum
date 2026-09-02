@@ -267,8 +267,8 @@ Item {
     property real cbGap: (cHeightTarget > 0 && bHeightTarget > 0) ? gap8 : 0
 
     property real fillInset: 0
-    property real baseMinTop: isFill ? fillInset : (barWindow ? (barWindow.edgePadding + barWindow.s(1)) : 0)
-    property real baseMaxBottom: isFill ? (contentWrapper.height - fillInset) : (barWindow ? (contentWrapper.height - barWindow.edgePadding - barWindow.s(1)) : contentWrapper.height)
+    property real baseMinTop: isFill ? fillInset : (barWindow ? (barWindow.verticalOffset + barWindow.s(1)) : 0)
+    property real baseMaxBottom: isFill ? (contentWrapper.height - fillInset) : (barWindow ? (contentWrapper.height - barWindow.verticalOffset - barWindow.s(1)) : contentWrapper.height)
 
     property real screenMinTop: isFill ? fillInset : (barWindow ? barWindow.s(1) : 0)
     property real screenMaxBottom: isFill ? (contentWrapper.height - fillInset) : (barWindow ? (contentWrapper.height - barWindow.s(1)) : contentWrapper.height)
@@ -303,19 +303,27 @@ Item {
     property real dynamicMinY: {
         if (isFill) return 0;
         let m = contentWrapper.height;
+        let hasModules = (tHeightTarget > 0 || cHeightTarget > 0 || bHeightTarget > 0);
         if (tHeightTarget > 0) m = Math.min(m, tFinalY - (barWindow ? barWindow.s(1) : 0));
         if (cHeightTarget > 0) m = Math.min(m, cFinalY - (barWindow ? barWindow.s(1) : 0));
         if (bHeightTarget > 0) m = Math.min(m, bFinalClampedY - (barWindow ? barWindow.s(1) : 0));
-        return Math.max(0, Math.min(m, barWindow ? barWindow.edgePadding : 0));
+        if (layoutState !== "default") {
+            return hasModules ? Math.max(0, m) : contentWrapper.height / 2;
+        }
+        return Math.max(0, Math.min(m, barWindow ? barWindow.verticalOffset : 0));
     }
 
     property real dynamicMaxY: {
         if (isFill) return contentWrapper.height;
         let m = 0;
+        let hasModules = (tHeightTarget > 0 || cHeightTarget > 0 || bHeightTarget > 0);
         if (tHeightTarget > 0) m = Math.max(m, tFinalY + tHeightTarget + (barWindow ? barWindow.s(1) : 0));
         if (cHeightTarget > 0) m = Math.max(m, cFinalY + cHeightTarget + (barWindow ? barWindow.s(1) : 0));
         if (bHeightTarget > 0) m = Math.max(m, bFinalClampedY + bHeightTarget + (barWindow ? barWindow.s(1) : 0));
-        return Math.min(contentWrapper.height, Math.max(m, barWindow ? (contentWrapper.height - barWindow.edgePadding) : contentWrapper.height));
+        if (layoutState !== "default") {
+            return hasModules ? Math.min(contentWrapper.height, m) : contentWrapper.height / 2;
+        }
+        return Math.min(contentWrapper.height, Math.max(m, barWindow ? (barWindow.verticalOffset + barWindow.effectiveBarHeight) : contentWrapper.height));
     }
 
     function matchId(item, id) {
