@@ -1074,5 +1074,8 @@
     "auto_paste_sub": "Wenn deaktiviert — nur in die zwischenablage kopiert",
     "keep_clipboard": "In zwischenablage behalten",
     "keep_clipboard_sub": "Wenn deaktiviert — ursprüngliche zwischenablage wird wiederhergestellt"
+  },
+  "datetime": {
+    "full_date": "dddd, d. MMMM"
   }
 }

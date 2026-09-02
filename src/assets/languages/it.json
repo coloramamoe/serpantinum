@@ -1030,5 +1030,8 @@
     "auto_paste_sub": "Se disattivato — la traduzione viene solo copiata negli appunti",
     "keep_clipboard": "Mantieni la traduzione negli appunti",
     "keep_clipboard_sub": "Se disattivato — il contenuto originale degli appunti viene ripristinato dopo l'incolla"
+  },
+  "datetime": {
+    "full_date": "dddd, d MMMM"
   }
 }

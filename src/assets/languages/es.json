@@ -1074,5 +1074,8 @@
     "auto_paste_sub": "Si está desactivado — solo se copia al portapapeles",
     "keep_clipboard": "Guardar traducción en el portapapeles",
     "keep_clipboard_sub": "Si está desactivado — se restaura el portapapeles original"
+  },
+  "datetime": {
+    "full_date": "dddd, d 'de' MMMM"
   }
 }

@@ -1030,5 +1030,8 @@
     "auto_paste_sub": "Nếu tắt — bản dịch chỉ được sao chép vào bộ nhớ tạm",
     "keep_clipboard": "Giữ bản dịch trong bộ nhớ tạm",
     "keep_clipboard_sub": "Nếu tắt — nội dung bộ nhớ tạm ban đầu sẽ được khôi phục sau khi dán"
+  },
+  "datetime": {
+    "full_date": "dddd, d MMMM"
   }
 }
