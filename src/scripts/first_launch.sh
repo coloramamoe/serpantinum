@@ -29,7 +29,15 @@ check_status() {
         RANDOM_WP="$(find "$WP_DIR" -maxdepth 1 -type f \( -iname "*.png" -o -iname "*.jpg" -o -iname "*.jpeg" -o -iname "*.webp" -o -iname "*.mp4" -o -iname "*.mkv" -o -iname "*.mov" -o -iname "*.webm" \) 2>/dev/null | shuf -n 1)"
     fi
 
-    START_QML="$(find "$SERPANTINUM_DIR/quickshell" -type f -name "Start.qml" 2>/dev/null | head -n 1)"
+    START_QML=""
+    if [ -f "$SERPANTINUM_DIR/quickshell/serp/Start.qml" ]; then
+        START_QML="$SERPANTINUM_DIR/quickshell/serp/Start.qml"
+    elif [ -f "$SERPANTINUM_DIR/quickshell/Start.qml" ]; then
+        START_QML="$SERPANTINUM_DIR/quickshell/Start.qml"
+    else
+        START_QML="$(find "$SERPANTINUM_DIR/quickshell" -type f -name "Start.qml" 2>/dev/null | head -n 1)"
+    fi
+
     echo "FIRST|$RANDOM_WP|$START_QML"
 }
 

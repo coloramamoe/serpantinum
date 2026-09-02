@@ -18,6 +18,7 @@ Item {
 
     property bool isFirstLaunch: false
     property bool executed: false
+    property string pendingStartQml: ""
 
     signal firstLaunchStarted()
     signal startAnimations()
@@ -25,10 +26,27 @@ Item {
 
     Timer {
         id: startupDelayTimer
-        interval: 400
+        interval: 350
         repeat: false
         onTriggered: {
             initProcess.running = true;
+        }
+    }
+
+    Timer {
+        id: launchStageTimer
+        interval: 850
+        repeat: false
+        onTriggered: {
+            root.firstLaunchStarted();
+            root.startAnimations();
+
+            if (root.pendingStartQml.length > 0) {
+                startLoader.source = "file://" + root.pendingStartQml;
+            } else {
+                startLoader.source = Qt.resolvedUrl("../serp/Start.qml");
+            }
+            startLoader.active = true;
         }
     }
 
@@ -56,8 +74,7 @@ Item {
 
     function runSetup(customWp, startQml) {
         root.isFirstLaunch = true;
-        root.firstLaunchStarted();
-        root.startAnimations();
+        root.pendingStartQml = startQml || "";
 
         let wp = (customWp || "").trim();
         if (wp.startsWith("file://")) {
@@ -76,23 +93,20 @@ Item {
             let retryCmd =
                 "WP='" + cleanWp + "'; " +
                 "FALLBACK='" + mainFallback + "'; " +
-                "for ((i=0; i<40; i++)); do " +
+                "for ((i=0; i<15; i++)); do " +
                 "if [ -n \"$MAIN_QML\" ] && quickshell -p \"$MAIN_QML\" ipc call wallpaper setWallpaper all \"$WP\" fade >/dev/null 2>&1; then exit 0; fi; " +
                 "if [ -n \"$FALLBACK\" ] && quickshell -p \"$FALLBACK\" ipc call wallpaper setWallpaper all \"$WP\" fade >/dev/null 2>&1; then exit 0; fi; " +
                 "if quickshell ipc call wallpaper setWallpaper all \"$WP\" fade >/dev/null 2>&1; then exit 0; fi; " +
-                "sleep 0.1; " +
+                "sleep 0.15; " +
                 "done";
 
             Quickshell.execDetached(["bash", "-c", retryCmd]);
+            launchStageTimer.interval = 900;
+        } else {
+            launchStageTimer.interval = 100;
         }
 
-        let targetStart = startQml || "";
-        if (targetStart.length > 0) {
-            startLoader.source = "file://" + targetStart;
-        } else {
-            startLoader.source = Qt.resolvedUrl("../serp/Start.qml");
-        }
-        startLoader.active = true;
+        launchStageTimer.start();
     }
 
     Loader {
