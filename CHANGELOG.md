@@ -1,3 +1,13 @@
+### 2.0.6-1
+
+- Fix disc to desc typo and general improvements (#210)
+- fix: delete lock and pid files for exiting
+- fix: make bluelight enable correctly on startup
+- feat: allow to shrink the topbar size up to 5%
+- style: replace the on/off toggle in osd for capslock, numlock and airplane mode with a clickbutton, optimize it, and remove it for niri and sway
+- fix: record selected monitor (#207)
+- feat(osd): add CapsLock, NumLock and Airplane mode indicator support (#203)
+
 ### 2.0.6
 
 - fix: make bluelight correctly and immidiatly follow the automated schedule. Add a city description
