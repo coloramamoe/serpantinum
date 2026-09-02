@@ -1220,7 +1220,7 @@ Item {
                                         id: barWidthSlider
                                         implicitWidth: rootObj.s(220)
                                         implicitHeight: rootObj.s(18)
-                                        from: 20
+                                        from: 5
                                         to: 100
                                         stepSize: 1
                                         defaultValue: 100
