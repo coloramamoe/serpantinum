@@ -280,7 +280,8 @@
       },
       "workspaces": {
         "title": "Anzahl anzuzeigender arbeitsflächen auswählen",
-        "disc": "Hinweis: Dies beeinflusst nicht die tatsächliche anzahl der arbeitsflächen im compositor"
+        "disc": "Hinweis: Dies beeinflusst nicht die tatsächliche anzahl der arbeitsflächen im compositor",
+        "desc": "Anzahl der anzuzeigenden Arbeitsflächen"
       },
       "opacity": {
         "title": "Leistentransparenz",

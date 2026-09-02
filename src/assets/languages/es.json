@@ -280,7 +280,8 @@
       },
       "workspaces": {
         "title": "Elegir cantidad de espacios de trabajo a mostrar",
-        "disc": "Nota: esto no afecta la cantidad real de espacios de trabajo en el compositor"
+        "disc": "Nota: esto no afecta la cantidad real de espacios de trabajo en el compositor",
+        "desc": "Número de espacios de trabajo a mostrar"
       },
       "opacity": {
         "title": "Opacidad de la barra",

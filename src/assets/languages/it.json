@@ -279,7 +279,7 @@
       },
       "workspaces": {
         "title": "Scegli il numero di spazi di lavoro da visualizzare",
-        "desc": "Nota: questo non modifica il numero reale di workspace nel compositor"
+        "desc": "Numero di spazi di lavoro da visualizzare"
       },
       "opacity": {
         "title": "Opacità barra",

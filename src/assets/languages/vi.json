@@ -279,7 +279,8 @@
       },
       "workspaces": {
         "title": "Chọn số lượng không gian làm việc để hiển thị",
-        "disc": "Lưu ý: điều này không ảnh hưởng đến số lượng không gian làm việc thực tế trong compositor"
+        "disc": "Lưu ý: điều này không ảnh hưởng đến số lượng không gian làm việc thực tế trong compositor",
+        "desc": "Số lượng không gian làm việc hiển thị"
       },
       "opacity": {
         "title": "Độ mờ thanh tác vụ",

@@ -279,7 +279,8 @@
       },
       "workspaces": {
         "title": "Choose an amount of workspaces to display",
-        "disc": "Note: this doesn't affect the actual amount of workspaces in the compositor"
+        "disc": "Note: this doesn't affect the actual amount of workspaces in the compositor",
+        "desc": "Number of workspaces to display"
       },
       "opacity": {
         "title": "Bar opacity",
