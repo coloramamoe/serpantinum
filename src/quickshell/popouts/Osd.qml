@@ -129,6 +129,7 @@ PanelWindow {
     property bool isBottomBar: barPosition === "bottom"
     property bool isFill: barStyle === "fill"
     property bool isSolid: (barStyle === "solid" || barStyle === "fill") && !isFullscreen && Math.round(barOpacity * 100) >= 100
+    readonly property bool isAttached: isSolid && (!isSideBar || !isToggleKind)
 
     property real barHeight: {
         let dummy = configRevision;
@@ -136,16 +137,16 @@ PanelWindow {
     }
 
     property real cornerRadius: ThemeBackend.borderRadius || s(12)
-    property real menuMargin: isSolid ? 0 : s(20)
+    property real menuMargin: isAttached ? 0 : s(20)
 
-    property real osdWidth: (isSolid && isSideBar) ? s(58) : s(296)
-    property real osdHeight: (isSolid && isSideBar) ? s(296) : s(58)
+    property real osdWidth: (isAttached && isSideBar) ? s(58) : s(296)
+    property real osdHeight: (isAttached && isSideBar) ? s(296) : s(58)
     property real collapsedWidth: s(58)
 
     visible: isVisible || osdContainer.animProgress > 0.001
 
     property real clampedX: {
-        if (isSolid) {
+        if (isAttached) {
             if (isSideBar) {
                 if (isRightBar) {
                     return osdWindow.width - barHeight - osdWidth;
@@ -161,7 +162,7 @@ PanelWindow {
     }
 
     property real clampedY: {
-        if (isSolid) {
+        if (isAttached) {
             if (isSideBar) {
                 return (osdWindow.height - osdHeight) / 2;
             } else {
@@ -237,10 +238,10 @@ PanelWindow {
             }
         }
 
-        property real dynamicCornerRadius: osdWindow.isSolid ? Math.max(0, Math.min(osdWindow.cornerRadius, (osdWindow.isSideBar ? width : height))) : 0
+        property real dynamicCornerRadius: osdWindow.isAttached ? Math.max(0, Math.min(osdWindow.cornerRadius, (osdWindow.isSideBar ? width : height))) : 0
 
         x: {
-            if (osdWindow.isSolid) {
+            if (osdWindow.isAttached) {
                 if (osdWindow.isSideBar && osdWindow.isRightBar) {
                     return (osdWindow.clampedX + osdWindow.osdWidth) - width;
                 }
@@ -249,13 +250,13 @@ PanelWindow {
             return (osdWindow.width - width) / 2;
         }
         y: {
-            if (osdWindow.isSolid && !osdWindow.isSideBar && osdWindow.isBottomBar) {
+            if (osdWindow.isAttached && !osdWindow.isSideBar && osdWindow.isBottomBar) {
                 return (osdWindow.clampedY + osdWindow.osdHeight) - height;
             }
             return osdWindow.clampedY;
         }
         width: {
-            if (osdWindow.isSolid) {
+            if (osdWindow.isAttached) {
                 if (osdWindow.isSideBar) {
                     return osdWindow.osdWidth * animProgress;
                 }
@@ -264,15 +265,15 @@ PanelWindow {
             return osdWindow.collapsedWidth + (osdWindow.osdWidth - osdWindow.collapsedWidth) * animProgress;
         }
         height: {
-            if (osdWindow.isSolid && !osdWindow.isSideBar) {
+            if (osdWindow.isAttached && !osdWindow.isSideBar) {
                 return osdWindow.osdHeight * animProgress;
             }
             return osdWindow.osdHeight;
         }
-        opacity: osdWindow.isSolid ? ((osdWindow.isVisible || animProgress > 0.001) ? 1.0 : 0.0) : Math.max(0.0, Math.min(1.0, animProgress * 1.5))
+        opacity: osdWindow.isAttached ? ((osdWindow.isVisible || animProgress > 0.001) ? 1.0 : 0.0) : Math.max(0.0, Math.min(1.0, animProgress * 1.5))
 
         transformOrigin: {
-            if (osdWindow.isSolid) {
+            if (osdWindow.isAttached) {
                 if (osdWindow.isSideBar) {
                     return osdWindow.isRightBar ? Item.Right : Item.Left;
                 }
@@ -282,7 +283,7 @@ PanelWindow {
         }
 
         Shape {
-            visible: osdWindow.isSolid && !osdWindow.isSideBar && !osdWindow.isBottomBar && osdContainer.dynamicCornerRadius > 0.5
+            visible: osdWindow.isAttached && !osdWindow.isSideBar && !osdWindow.isBottomBar && osdContainer.dynamicCornerRadius > 0.5
             x: -osdContainer.dynamicCornerRadius
             y: 0
             width: osdContainer.dynamicCornerRadius
@@ -306,7 +307,7 @@ PanelWindow {
         }
 
         Shape {
-            visible: osdWindow.isSolid && !osdWindow.isSideBar && !osdWindow.isBottomBar && osdContainer.dynamicCornerRadius > 0.5
+            visible: osdWindow.isAttached && !osdWindow.isSideBar && !osdWindow.isBottomBar && osdContainer.dynamicCornerRadius > 0.5
             x: parent.width
             y: 0
             width: osdContainer.dynamicCornerRadius
@@ -330,7 +331,7 @@ PanelWindow {
         }
 
         Shape {
-            visible: osdWindow.isSolid && !osdWindow.isSideBar && osdWindow.isBottomBar && osdContainer.dynamicCornerRadius > 0.5
+            visible: osdWindow.isAttached && !osdWindow.isSideBar && osdWindow.isBottomBar && osdContainer.dynamicCornerRadius > 0.5
             x: -osdContainer.dynamicCornerRadius
             y: parent.height - osdContainer.dynamicCornerRadius
             width: osdContainer.dynamicCornerRadius
@@ -354,7 +355,7 @@ PanelWindow {
         }
 
         Shape {
-            visible: osdWindow.isSolid && !osdWindow.isSideBar && osdWindow.isBottomBar && osdContainer.dynamicCornerRadius > 0.5
+            visible: osdWindow.isAttached && !osdWindow.isSideBar && osdWindow.isBottomBar && osdContainer.dynamicCornerRadius > 0.5
             x: parent.width
             y: parent.height - osdContainer.dynamicCornerRadius
             width: osdContainer.dynamicCornerRadius
@@ -378,7 +379,7 @@ PanelWindow {
         }
 
         Shape {
-            visible: osdWindow.isSolid && osdWindow.isSideBar && !osdWindow.isRightBar && osdContainer.dynamicCornerRadius > 0.5
+            visible: osdWindow.isAttached && osdWindow.isSideBar && !osdWindow.isRightBar && osdContainer.dynamicCornerRadius > 0.5
             x: 0
             y: -osdContainer.dynamicCornerRadius
             width: osdContainer.dynamicCornerRadius
@@ -402,7 +403,7 @@ PanelWindow {
         }
 
         Shape {
-            visible: osdWindow.isSolid && osdWindow.isSideBar && !osdWindow.isRightBar && osdContainer.dynamicCornerRadius > 0.5
+            visible: osdWindow.isAttached && osdWindow.isSideBar && !osdWindow.isRightBar && osdContainer.dynamicCornerRadius > 0.5
             x: 0
             y: parent.height
             width: osdContainer.dynamicCornerRadius
@@ -426,7 +427,7 @@ PanelWindow {
         }
 
         Shape {
-            visible: osdWindow.isSolid && osdWindow.isSideBar && osdWindow.isRightBar && osdContainer.dynamicCornerRadius > 0.5
+            visible: osdWindow.isAttached && osdWindow.isSideBar && osdWindow.isRightBar && osdContainer.dynamicCornerRadius > 0.5
             x: parent.width - osdContainer.dynamicCornerRadius
             y: -osdContainer.dynamicCornerRadius
             width: osdContainer.dynamicCornerRadius
@@ -450,7 +451,7 @@ PanelWindow {
         }
 
         Shape {
-            visible: osdWindow.isSolid && osdWindow.isSideBar && osdWindow.isRightBar && osdContainer.dynamicCornerRadius > 0.5
+            visible: osdWindow.isAttached && osdWindow.isSideBar && osdWindow.isRightBar && osdContainer.dynamicCornerRadius > 0.5
             x: parent.width - osdContainer.dynamicCornerRadius
             y: parent.height
             width: osdContainer.dynamicCornerRadius
@@ -478,12 +479,12 @@ PanelWindow {
             anchors.fill: parent
             color: ThemeBackend.base
             radius: osdWindow.cornerRadius
-            border.width: osdWindow.isSolid ? 0 : 1
-            border.color: osdWindow.isSolid ? "transparent" : ThemeBackend.surface0
+            border.width: osdWindow.isAttached ? 0 : 1
+            border.color: osdWindow.isAttached ? "transparent" : ThemeBackend.surface0
             clip: true
 
             Rectangle {
-                visible: osdWindow.isSolid && !osdWindow.isSideBar && !osdWindow.isBottomBar && osdContainer.dynamicCornerRadius > 0.5
+                visible: osdWindow.isAttached && !osdWindow.isSideBar && !osdWindow.isBottomBar && osdContainer.dynamicCornerRadius > 0.5
                 x: 0
                 y: 0
                 width: osdContainer.dynamicCornerRadius
@@ -492,7 +493,7 @@ PanelWindow {
             }
 
             Rectangle {
-                visible: osdWindow.isSolid && !osdWindow.isSideBar && !osdWindow.isBottomBar && osdContainer.dynamicCornerRadius > 0.5
+                visible: osdWindow.isAttached && !osdWindow.isSideBar && !osdWindow.isBottomBar && osdContainer.dynamicCornerRadius > 0.5
                 x: parent.width - osdContainer.dynamicCornerRadius
                 y: 0
                 width: osdContainer.dynamicCornerRadius
@@ -501,7 +502,7 @@ PanelWindow {
             }
 
             Rectangle {
-                visible: osdWindow.isSolid && !osdWindow.isSideBar && osdWindow.isBottomBar && osdContainer.dynamicCornerRadius > 0.5
+                visible: osdWindow.isAttached && !osdWindow.isSideBar && osdWindow.isBottomBar && osdContainer.dynamicCornerRadius > 0.5
                 x: 0
                 y: parent.height - osdContainer.dynamicCornerRadius
                 width: osdContainer.dynamicCornerRadius
@@ -510,7 +511,7 @@ PanelWindow {
             }
 
             Rectangle {
-                visible: osdWindow.isSolid && !osdWindow.isSideBar && !osdWindow.isBottomBar && osdContainer.dynamicCornerRadius > 0.5
+                visible: osdWindow.isAttached && !osdWindow.isSideBar && osdWindow.isBottomBar && osdContainer.dynamicCornerRadius > 0.5
                 x: parent.width - osdContainer.dynamicCornerRadius
                 y: parent.height - osdContainer.dynamicCornerRadius
                 width: osdContainer.dynamicCornerRadius
@@ -519,7 +520,7 @@ PanelWindow {
             }
 
             Rectangle {
-                visible: osdWindow.isSolid && osdWindow.isSideBar && !osdWindow.isRightBar && osdContainer.dynamicCornerRadius > 0.5
+                visible: osdWindow.isAttached && osdWindow.isSideBar && !osdWindow.isRightBar && osdContainer.dynamicCornerRadius > 0.5
                 x: 0
                 y: 0
                 width: osdContainer.dynamicCornerRadius
@@ -528,7 +529,7 @@ PanelWindow {
             }
 
             Rectangle {
-                visible: osdWindow.isSolid && osdWindow.isSideBar && !osdWindow.isRightBar && osdContainer.dynamicCornerRadius > 0.5
+                visible: osdWindow.isAttached && osdWindow.isSideBar && !osdWindow.isRightBar && osdContainer.dynamicCornerRadius > 0.5
                 x: 0
                 y: parent.height - osdContainer.dynamicCornerRadius
                 width: osdContainer.dynamicCornerRadius
@@ -537,7 +538,7 @@ PanelWindow {
             }
 
             Rectangle {
-                visible: osdWindow.isSolid && osdWindow.isSideBar && osdWindow.isRightBar && osdContainer.dynamicCornerRadius > 0.5
+                visible: osdWindow.isAttached && osdWindow.isSideBar && osdWindow.isRightBar && osdContainer.dynamicCornerRadius > 0.5
                 x: parent.width - osdContainer.dynamicCornerRadius
                 y: 0
                 width: osdContainer.dynamicCornerRadius
@@ -546,7 +547,7 @@ PanelWindow {
             }
 
             Rectangle {
-                visible: osdWindow.isSolid && osdWindow.isSideBar && osdWindow.isRightBar && osdContainer.dynamicCornerRadius > 0.5
+                visible: osdWindow.isAttached && osdWindow.isSideBar && osdWindow.isRightBar && osdContainer.dynamicCornerRadius > 0.5
                 x: parent.width - osdContainer.dynamicCornerRadius
                 y: parent.height - osdContainer.dynamicCornerRadius
                 width: osdContainer.dynamicCornerRadius
@@ -567,7 +568,7 @@ PanelWindow {
             }
 
             ColumnLayout {
-                visible: osdWindow.isSideBar && osdWindow.isSolid
+                visible: osdWindow.isSideBar && osdWindow.isAttached
                 anchors.fill: parent
                 anchors.topMargin: osdWindow.s(14)
                 anchors.bottomMargin: osdWindow.s(14)
@@ -579,11 +580,11 @@ PanelWindow {
                     Layout.alignment: Qt.AlignHCenter
                     size: osdWindow.s(26)
                     iconOffsetX: {
-		        if (osdWindow.kind === "airplane" || osdWindow.kind === "capslock") return -1;
-		        if (osdWindow.kind === "volume") return -1;
-		        if (osdWindow.kind === "mic") return 0;
-		        return -3;
-		    }
+                        if (osdWindow.kind === "airplane" || osdWindow.kind === "capslock") return -1;
+                        if (osdWindow.kind === "volume") return -1;
+                        if (osdWindow.kind === "mic") return 0;
+                        return -3;
+                    }
                     cornerRadius: osdWindow.s(8)
                     buttonIcon: {
                         if (osdWindow.kind === "volume") {
@@ -724,7 +725,7 @@ PanelWindow {
             }
 
             Item {
-                visible: !(osdWindow.isSideBar && osdWindow.isSolid)
+                visible: !(osdWindow.isSideBar && osdWindow.isAttached)
                 anchors.fill: parent
 
                 Item {
@@ -738,11 +739,11 @@ PanelWindow {
                         size: osdWindow.s(30)
                         cornerRadius: osdWindow.s(8)
                         iconOffsetX: {
-			    if (osdWindow.kind === "airplane" || osdWindow.kind === "capslock") return -1;
-			    if (osdWindow.kind === "volume") return -1;
-			    if (osdWindow.kind === "mic") return 0;
-			    return -3;
-			}
+                            if (osdWindow.kind === "airplane" || osdWindow.kind === "capslock") return -1;
+                            if (osdWindow.kind === "volume") return -1;
+                            if (osdWindow.kind === "mic") return 0;
+                            return -3;
+                        }
                         buttonIcon: {
                             if (osdWindow.kind === "volume") {
                                 return osdWindow.isMuted || osdWindow.volVal === 0 ? "󰖁" : (osdWindow.volVal > 50 ? "󰕾" : "󰖀");
