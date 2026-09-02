@@ -11,6 +11,9 @@ import "../reusables"
 PanelWindow {
     id: window
 
+    signal finished()
+    signal closed()
+
     WlrLayershell.namespace: "welcome-guide"
     WlrLayershell.layer: WlrLayer.Overlay
     WlrLayershell.keyboardFocus: WlrKeyboardFocus.Exclusive
@@ -725,7 +728,11 @@ PanelWindow {
             }
         }
         ScriptAction {
-            script: Qt.quit();
+            script: {
+                window.finished();
+                window.closed();
+                window.visible = false;
+            }
         }
     }
 }

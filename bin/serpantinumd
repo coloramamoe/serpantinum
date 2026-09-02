@@ -45,14 +45,14 @@ show_help() {
     echo "$(t "daemon.cli.description")"
     echo ""
     echo "$(t "daemon.cli.commands")"
-    echo "  start                 $(t "daemon.cli.cmd_start")"
-    echo "  stop                  $(t "daemon.cli.cmd_stop")"
-    echo "  status                $(t "daemon.cli.cmd_status")"
+    echo "  start                   $(t "daemon.cli.cmd_start")"
+    echo "  stop                    $(t "daemon.cli.cmd_stop")"
+    echo "  status                  $(t "daemon.cli.cmd_status")"
     echo ""
     echo "$(t "daemon.cli.options")"
-    echo "  -v, --verbose         $(t "daemon.cli.opt_verbose")"
-    echo "  -V, --version         $(t "daemon.cli.opt_version")"
-    echo "  -h, --help            $(t "daemon.cli.opt_help")"
+    echo "  -v, --verbose          $(t "daemon.cli.opt_verbose")"
+    echo "  -V, --version          $(t "daemon.cli.opt_version")"
+    echo "  -h, --help             $(t "daemon.cli.opt_help")"
     echo ""
 }
 
@@ -159,9 +159,6 @@ if [ "$COMMAND" == "start" ]; then
     [ "$VERBOSE" = true ] && echo "$(t "daemon.launching")"
 
     bash "$SERPANTINUM_DIR/quickshell/guide/wellbeing/launch_daemon.sh" &
-    CHILD_PIDS+=($!)
-
-    bash "$SERPANTINUM_DIR/scripts/first_launch.sh" &
     CHILD_PIDS+=($!)
 
     quickshell -p "$MAIN_QML" &

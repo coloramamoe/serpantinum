@@ -43,4 +43,8 @@ ShellRoot {
         active: !performanceMode && quickactionsEnabled
         sourceComponent: Floating {}
     }
+
+    Component.onCompleted: {
+        FirstLaunch.checkFirstLaunch();
+    }
 }
