@@ -41,6 +41,7 @@ PanelWindow {
 
     property bool isVisible: ClipboardController.isVisible
     property int configRevision: 0
+    property bool isDirty: true
 
     Connections {
         target: (typeof Config !== "undefined") ? Config : null
@@ -152,7 +153,11 @@ PanelWindow {
         command: ["wl-paste", "--watch", "echo", "1"]
         stdout: SplitParser {
             onRead: (data) => {
-                clipWatchDebounce.restart();
+                if (clipboardWindow.isVisible) {
+                    clipWatchDebounce.restart();
+                } else {
+                    clipboardWindow.isDirty = true;
+                }
             }
         }
     }
@@ -541,8 +546,12 @@ PanelWindow {
         if (isVisible) {
             searchInput.clear();
             filterDebounceTimer.stop();
-            executeClipFilter("");
-            refreshClips();
+            if (clipboardWindow.isDirty || clipboardWindow.allFetchedClips.length === 0) {
+                clipboardWindow.isDirty = false;
+                refreshClips();
+            } else {
+                executeClipFilter("");
+            }
             clipboardWindow.grabInputFocus();
             focusTimer.restart();
             focusRetryTimer.restart();
@@ -555,10 +564,6 @@ PanelWindow {
             focusFinalTimer.stop();
             keyboardNavTimer.stop();
         }
-    }
-
-    Component.onCompleted: {
-        refreshClips();
     }
 
     MouseArea {

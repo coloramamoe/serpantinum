@@ -117,12 +117,12 @@ ShellRoot {
                         if (screenName === "all" || screenName === barWindow.screen.name) {
                             if (state === "pause") {
                                 barWindow.playbackPaused = true;
-                                playerA.stop();
-                                playerB.stop();
+                                barWindow.stopA();
+                                barWindow.stopB();
                             } else if (state === "play") {
                                 barWindow.playbackPaused = false;
-                                if (barWindow.activeLayer === 0 && barWindow.isVideoA) playerA.play();
-                                if (barWindow.activeLayer === 1 && barWindow.isVideoB) playerB.play();
+                                if (barWindow.activeLayer === 0 && barWindow.isVideoA) barWindow.playA();
+                                if (barWindow.activeLayer === 1 && barWindow.isVideoB) barWindow.playB();
                             }
                         }
                     }
@@ -135,8 +135,8 @@ ShellRoot {
                             barWindow.isVideoA = false;
                             barWindow.isVideoB = false;
                             barWindow.originalFileName = "";
-                            playerA.stop();
-                            playerB.stop();
+                            barWindow.stopA();
+                            barWindow.stopB();
                             Quickshell.execDetached(["bash", "-c", "rm -f '" + barWindow.wpStatePath + "' '" + barWindow.wpStatePath + "_name'"]);
                         }
                     }
@@ -145,7 +145,10 @@ ShellRoot {
                 Process {
                     id: restorePoller
                     running: false
-                    command: ["bash", "-c", "cat '" + barWindow.wpStatePath + "' 2>/dev/null || echo ''; echo '---SPLIT---'; cat '" + barWindow.wpStatePath + "_name' 2>/dev/null || echo ''"]
+                    command: [
+                        "bash", "-c",
+                        "F1='" + barWindow.wpStatePath + "'; F2='" + barWindow.wpStatePath + "_name'; [ -f \"$F1\" ] && cat \"$F1\" || true; echo '---SPLIT---'; [ -f \"$F2\" ] && cat \"$F2\" || true"
+                    ]
                     stdout: StdioCollector {
                         onStreamFinished: {
                             let parts = this.text.split("---SPLIT---");
@@ -162,7 +165,7 @@ ShellRoot {
                                 if (savedName !== "") {
                                     let histFile = barWindow.wpCacheDir + "/history.txt";
                                     Quickshell.execDetached(["bash", "-c",
-                                        "HIST='" + histFile + "'; if [ -f \"$HIST\" ]; then grep -v -F -x '" + savedName + "' \"$HIST\" > \"$HIST.tmp\" 2>/dev/null || true; printf '%s\n' '" + savedName + "' | cat - \"$HIST.tmp\" > \"$HIST\" 2>/dev/null; rm -f \"$HIST.tmp\"; else printf '%s\n' '" + savedName + "' > \"$HIST\"; fi"
+                                        "HIST='" + histFile + "'; if [ -f \"$HIST\" ]; then if [ \"$(head -n 1 \"$HIST\" 2>/dev/null)\" != '" + savedName + "' ]; then grep -v -F -x '" + savedName + "' \"$HIST\" > \"$HIST.tmp\" 2>/dev/null || true; printf '%s\n' '" + savedName + "' | cat - \"$HIST.tmp\" > \"$HIST\" 2>/dev/null; rm -f \"$HIST.tmp\"; fi; else printf '%s\n' '" + savedName + "' > \"$HIST\"; fi"
                                     ]);
                                 }
                             }
@@ -197,6 +200,30 @@ ShellRoot {
                            lp.endsWith(".mov") || lp.endsWith(".webm");
                 }
 
+                function playA() {
+                    if (videoLoaderA.item && typeof videoLoaderA.item.play === "function") {
+                        videoLoaderA.item.play();
+                    }
+                }
+
+                function stopA() {
+                    if (videoLoaderA.item && typeof videoLoaderA.item.stop === "function") {
+                        videoLoaderA.item.stop();
+                    }
+                }
+
+                function playB() {
+                    if (videoLoaderB.item && typeof videoLoaderB.item.play === "function") {
+                        videoLoaderB.item.play();
+                    }
+                }
+
+                function stopB() {
+                    if (videoLoaderB.item && typeof videoLoaderB.item.stop === "function") {
+                        videoLoaderB.item.stop();
+                    }
+                }
+
                 function triggerTransition() {
                     videoWarmUpTimer.stop();
                     barWindow.isPreloading = false;
@@ -226,7 +253,7 @@ ShellRoot {
                         barWindow.isVideoA = vid;
                         barWindow.activeLayer = 0;
                         if (vid) {
-                            playerA.play();
+                            barWindow.playA();
                             videoWarmUpTimer.restart();
                         } else {
                             barWindow.triggerTransition();
@@ -236,7 +263,7 @@ ShellRoot {
                         barWindow.isVideoB = vid;
                         barWindow.activeLayer = 1;
                         if (vid) {
-                            playerB.play();
+                            barWindow.playB();
                             videoWarmUpTimer.restart();
                         } else {
                             barWindow.triggerTransition();
@@ -248,7 +275,7 @@ ShellRoot {
 
                 function changeWallpaper(path, ttype) {
                     if (!path) return;
-                    
+
                     let cleanPath = String(path).trim();
                     let slash = cleanPath.lastIndexOf("/");
                     let origName = cleanPath.substring(slash + 1);
@@ -286,52 +313,26 @@ ShellRoot {
                     to: 1.0
                     duration: barWindow.transitionDuration
                     easing.type: Easing.InOutCubic
-                    
+
                     onFinished: {
                         if (barWindow.activeLayer === 0) {
-                            playerB.stop();
+                            barWindow.stopB();
                             barWindow.pathB = "";
                             barWindow.isVideoB = false;
                         } else {
-                            playerA.stop();
+                            barWindow.stopA();
                             barWindow.pathA = "";
                             barWindow.isVideoA = false;
                         }
                     }
                 }
 
-                Item {
-                    id: scene
-                    anchors.fill: parent
-                    clip: true
-
+                Component {
+                    id: videoLayerCompA
                     Item {
-                        id: layerA
-                        width: parent.width
-                        height: parent.height
-                        
-                        readonly property bool isIncoming: barWindow.activeLayer === 0
-                        readonly property real p: barWindow.transitionProgress
-                        
-                        z: isIncoming ? 2 : 1
-                        visible: isIncoming || p < 1.0
-
-                        opacity: {
-                            if (barWindow.isPreloading && isIncoming) return 0.0;
-                            return isIncoming ? p : 1.0 - p;
-                        }
-
-                        Image {
-                            id: imgA
-                            anchors.fill: parent
-                            source: !barWindow.isVideoA && barWindow.pathA ? "file://" + barWindow.pathA : ""
-                            fillMode: Image.PreserveAspectCrop
-                            asynchronous: true
-                            visible: !barWindow.isVideoA
-                            cache: true
-                            sourceSize.width: parent.width
-                            sourceSize.height: parent.height
-                        }
+                        anchors.fill: parent
+                        function play() { playerA.play(); }
+                        function stop() { playerA.stop(); }
 
                         MediaPlayer {
                             id: playerA
@@ -349,37 +350,16 @@ ShellRoot {
                             id: videoOutputA
                             anchors.fill: parent
                             fillMode: VideoOutput.PreserveAspectCrop
-                            visible: barWindow.isVideoA
                         }
                     }
+                }
 
+                Component {
+                    id: videoLayerCompB
                     Item {
-                        id: layerB
-                        width: parent.width
-                        height: parent.height
-                        
-                        readonly property bool isIncoming: barWindow.activeLayer === 1
-                        readonly property real p: barWindow.transitionProgress
-                        
-                        z: isIncoming ? 2 : 1
-                        visible: isIncoming || p < 1.0
-
-                        opacity: {
-                            if (barWindow.isPreloading && isIncoming) return 0.0;
-                            return isIncoming ? p : 1.0 - p;
-                        }
-
-                        Image {
-                            id: imgB
-                            anchors.fill: parent
-                            source: !barWindow.isVideoB && barWindow.pathB ? "file://" + barWindow.pathB : ""
-                            fillMode: Image.PreserveAspectCrop
-                            asynchronous: true
-                            visible: !barWindow.isVideoB
-                            cache: true
-                            sourceSize.width: parent.width
-                            sourceSize.height: parent.height
-                        }
+                        anchors.fill: parent
+                        function play() { playerB.play(); }
+                        function stop() { playerB.stop(); }
 
                         MediaPlayer {
                             id: playerB
@@ -397,7 +377,98 @@ ShellRoot {
                             id: videoOutputB
                             anchors.fill: parent
                             fillMode: VideoOutput.PreserveAspectCrop
+                        }
+                    }
+                }
+
+                Item {
+                    id: scene
+                    anchors.fill: parent
+                    clip: true
+
+                    Item {
+                        id: layerA
+                        width: parent.width
+                        height: parent.height
+
+                        readonly property bool isIncoming: barWindow.activeLayer === 0
+                        readonly property real p: barWindow.transitionProgress
+
+                        z: isIncoming ? 2 : 1
+                        visible: isIncoming || p < 1.0
+
+                        opacity: {
+                            if (barWindow.isPreloading && isIncoming) return 0.0;
+                            return isIncoming ? p : 1.0 - p;
+                        }
+
+                        Image {
+                            id: imgA
+                            anchors.fill: parent
+                            source: !barWindow.isVideoA && barWindow.pathA ? "file://" + barWindow.pathA : ""
+                            fillMode: Image.PreserveAspectCrop
+                            asynchronous: true
+                            visible: !barWindow.isVideoA && barWindow.pathA !== ""
+                            cache: true
+                            sourceSize.width: parent.width > 0 ? parent.width : undefined
+                            sourceSize.height: parent.height > 0 ? parent.height : undefined
+                        }
+
+                        Loader {
+                            id: videoLoaderA
+                            anchors.fill: parent
+                            active: barWindow.isVideoA && barWindow.pathA !== ""
+                            asynchronous: false
+                            sourceComponent: videoLayerCompA
+                            visible: barWindow.isVideoA
+                            onLoaded: {
+                                if (item && barWindow.activeLayer === 0 && barWindow.isVideoA && !barWindow.playbackPaused) {
+                                    item.play();
+                                }
+                            }
+                        }
+                    }
+
+                    Item {
+                        id: layerB
+                        width: parent.width
+                        height: parent.height
+
+                        readonly property bool isIncoming: barWindow.activeLayer === 1
+                        readonly property real p: barWindow.transitionProgress
+
+                        z: isIncoming ? 2 : 1
+                        visible: isIncoming || p < 1.0
+
+                        opacity: {
+                            if (barWindow.isPreloading && isIncoming) return 0.0;
+                            return isIncoming ? p : 1.0 - p;
+                        }
+
+                        Image {
+                            id: imgB
+                            anchors.fill: parent
+                            source: !barWindow.isVideoB && barWindow.pathB ? "file://" + barWindow.pathB : ""
+                            fillMode: Image.PreserveAspectCrop
+                            asynchronous: true
+                            visible: !barWindow.isVideoB && barWindow.pathB !== ""
+                            cache: true
+                            sourceSize.width: parent.width > 0 ? parent.width : undefined
+                            sourceSize.height: parent.height > 0 ? parent.height : undefined
+                        }
+
+                        Loader {
+                            id: videoLoaderB
+                            anchors.fill: parent
+                            active: barWindow.isVideoB && barWindow.pathB !== ""
+                            asynchronous: false
+                            sourceComponent: videoLayerCompB
                             visible: barWindow.isVideoB
+                            onLoaded: {
+                                if (item && barWindow.activeLayer === 1 && barWindow.isVideoB && !barWindow.playbackPaused) {
+                                    item.play();
+                                }
+                            }
                         }
                     }
                 }

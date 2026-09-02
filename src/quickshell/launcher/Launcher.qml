@@ -41,6 +41,7 @@ PanelWindow {
 
     property bool isVisible: LauncherController.isVisible
     property int configRevision: 0
+    property bool appsLoaded: false
 
     Connections {
         target: (typeof Config !== "undefined") ? Config : null
@@ -53,26 +54,33 @@ PanelWindow {
     Connections {
         target: (typeof I18n !== "undefined") ? I18n : null
         function onLanguageChanged() {
-            launcherWindow.loadApps();
-            launcherWindow.executeFilter(searchInput.text);
+            if (launcherWindow.isVisible) {
+                launcherWindow.loadApps();
+                launcherWindow.executeFilter(searchInput.text);
+            } else {
+                launcherWindow.appsLoaded = false;
+            }
         }
     }
 
     Connections {
         target: (typeof DesktopEntries !== "undefined" && DesktopEntries.applications) ? DesktopEntries.applications : null
         function onValuesChanged() {
-            launcherWindow.loadApps();
-            launcherWindow.executeFilter(searchInput.text);
+            if (launcherWindow.isVisible) {
+                launcherWindow.loadApps();
+                launcherWindow.executeFilter(searchInput.text);
+            } else {
+                launcherWindow.appsLoaded = false;
+            }
         }
         function onCountChanged() {
-            launcherWindow.loadApps();
-            launcherWindow.executeFilter(searchInput.text);
+            if (launcherWindow.isVisible) {
+                launcherWindow.loadApps();
+                launcherWindow.executeFilter(searchInput.text);
+            } else {
+                launcherWindow.appsLoaded = false;
+            }
         }
-    }
-
-    Component.onCompleted: {
-        loadApps();
-        executeFilter("");
     }
 
     property var defaultLauncherSettings: ({
@@ -101,8 +109,12 @@ PanelWindow {
     property bool smartRanking: (rawLauncherSettings && rawLauncherSettings.smartRanking !== undefined) ? rawLauncherSettings.smartRanking : true
 
     onSmartRankingChanged: {
-        loadApps();
-        executeFilter(searchInput.text);
+        if (launcherWindow.isVisible) {
+            loadApps();
+            executeFilter(searchInput.text);
+        } else {
+            launcherWindow.appsLoaded = false;
+        }
     }
 
     property var rawBarSettings: {
@@ -265,9 +277,12 @@ PanelWindow {
 
     onIsVisibleChanged: {
         if (isVisible) {
+            if (!launcherWindow.appsLoaded) {
+                launcherWindow.loadApps();
+                launcherWindow.appsLoaded = true;
+            }
             searchInput.clear();
             filterDebounceTimer.stop();
-            loadApps();
             executeFilter("");
             if (launcherWindow.smartRanking) {
                 rankFetcher.running = false;
@@ -978,14 +993,18 @@ PanelWindow {
                 id: contentContainer
                 anchors.fill: parent
                 anchors.margins: launcherWindow.s(14)
+                visible: width > 0 && height > 0
+                clip: true
+
+                readonly property bool isSearchAtBottom: launcherWindow.attachEdge === "bottom"
 
                 Input {
                     id: searchInput
+                    z: 10
                     focus: true
                     anchors.left: parent.left
                     anchors.right: parent.right
-                    anchors.top: launcherWindow.attachEdge === "bottom" ? undefined : parent.top
-                    anchors.bottom: launcherWindow.attachEdge === "bottom" ? parent.bottom : undefined
+                    y: contentContainer.isSearchAtBottom ? Math.max(0, parent.height - height) : 0
                     height: launcherWindow.s(36)
 
                     baseColor: ThemeBackend.surface0
@@ -1033,12 +1052,11 @@ PanelWindow {
 
                 Item {
                     id: listContainer
+                    z: 1
                     anchors.left: parent.left
                     anchors.right: parent.right
-                    anchors.top: launcherWindow.attachEdge === "bottom" ? parent.top : searchInput.bottom
-                    anchors.bottom: launcherWindow.attachEdge === "bottom" ? searchInput.top : parent.bottom
-                    anchors.topMargin: launcherWindow.attachEdge === "bottom" ? 0 : launcherWindow.s(10)
-                    anchors.bottomMargin: launcherWindow.attachEdge === "bottom" ? launcherWindow.s(10) : 0
+                    y: contentContainer.isSearchAtBottom ? 0 : (searchInput.height + launcherWindow.s(10))
+                    height: Math.max(0, parent.height - searchInput.height - launcherWindow.s(10))
                     clip: true
 
                     ListView {

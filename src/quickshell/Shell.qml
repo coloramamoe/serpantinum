@@ -17,11 +17,10 @@ ShellRoot {
     Lock {}
 
     Launcher {}
-    Clipboard {}	
+    Clipboard {}    
 
     Polkit {}
     PopoutManager {}
-
 
     Loader {
         active: !performanceMode

@@ -39,22 +39,6 @@ Scope {
         return ThemeBackend.text;
     }
 
-    Item {
-        width: 1
-        height: 1
-        visible: false
-        opacity: 0
-
-        Item { id: dummyShaderSrc; width: 1; height: 1 }
-        Item { id: dummyShaderMsk; width: 1; height: 1 }
-        MultiEffect {
-            source: dummyShaderSrc
-            blurEnabled: true
-            maskEnabled: true
-            maskSource: dummyShaderMsk
-        }
-    }
-
     function updateDeInfo() {
         let de = SystemInfo.desktopEnv ? SystemInfo.desktopEnv.toLowerCase() : "";
         root.isNiri = de.indexOf("niri") !== -1;
@@ -231,7 +215,7 @@ Scope {
 
     IpcHandler {
         target: "lock"
-        function activate() {
+        function activate(): void {
             root.lock();
         }
     }
