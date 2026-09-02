@@ -510,7 +510,7 @@ PanelWindow {
             }
 
             Rectangle {
-                visible: osdWindow.isSolid && !osdWindow.isSideBar && osdWindow.isBottomBar && osdContainer.dynamicCornerRadius > 0.5
+                visible: osdWindow.isSolid && !osdWindow.isSideBar && !osdWindow.isBottomBar && osdContainer.dynamicCornerRadius > 0.5
                 x: parent.width - osdContainer.dynamicCornerRadius
                 y: parent.height - osdContainer.dynamicCornerRadius
                 width: osdContainer.dynamicCornerRadius
@@ -578,7 +578,12 @@ PanelWindow {
                 IconButton {
                     Layout.alignment: Qt.AlignHCenter
                     size: osdWindow.s(26)
-                    iconOffsetX: osdWindow.kind === "volume" ? -1 : (osdWindow.kind === "mic" ? 0 : -3)
+                    iconOffsetX: {
+		        if (osdWindow.kind === "airplane" || osdWindow.kind === "capslock") return -1;
+		        if (osdWindow.kind === "volume") return -1;
+		        if (osdWindow.kind === "mic") return 0;
+		        return -3;
+		    }
                     cornerRadius: osdWindow.s(8)
                     buttonIcon: {
                         if (osdWindow.kind === "volume") {
@@ -586,9 +591,9 @@ PanelWindow {
                         } else if (osdWindow.kind === "mic") {
                             return osdWindow.isMicMuted || osdWindow.micVal === 0 ? "󰍭" : "󰍬";
                         } else if (osdWindow.kind === "capslock") {
-                            return osdWindow.isToggleActive ? "󰬈" : "󰌾";
+                            return "󰬈";
                         } else if (osdWindow.kind === "numlock") {
-                            return osdWindow.isToggleActive ? "󰎠" : "󰌾";
+                            return "󰎠";
                         } else if (osdWindow.kind === "airplane") {
                             return "󰀝";
                         } else {
@@ -732,16 +737,21 @@ PanelWindow {
                         anchors.centerIn: parent
                         size: osdWindow.s(30)
                         cornerRadius: osdWindow.s(8)
-                        iconOffsetX: osdWindow.kind === "volume" ? -1 : (osdWindow.kind === "mic" ? 0 : -3)
+                        iconOffsetX: {
+			    if (osdWindow.kind === "airplane" || osdWindow.kind === "capslock") return -1;
+			    if (osdWindow.kind === "volume") return -1;
+			    if (osdWindow.kind === "mic") return 0;
+			    return -3;
+			}
                         buttonIcon: {
                             if (osdWindow.kind === "volume") {
                                 return osdWindow.isMuted || osdWindow.volVal === 0 ? "󰖁" : (osdWindow.volVal > 50 ? "󰕾" : "󰖀");
                             } else if (osdWindow.kind === "mic") {
                                 return osdWindow.isMicMuted || osdWindow.micVal === 0 ? "󰍭" : "󰍬";
                             } else if (osdWindow.kind === "capslock") {
-                                return osdWindow.isToggleActive ? "󰬈" : "󰌾";
+                                return "󰬈";
                             } else if (osdWindow.kind === "numlock") {
-                                return osdWindow.isToggleActive ? "󰎠" : "󰌾";
+                                return "󰎠";
                             } else if (osdWindow.kind === "airplane") {
                                 return "󰀝";
                             } else {
@@ -811,22 +821,30 @@ PanelWindow {
                         elide: Text.ElideRight
                     }
 
-                    Rectangle {
+                    ClickButton {
+                        id: toggleBtn
+                        Layout.alignment: Qt.AlignVCenter
                         Layout.preferredHeight: osdWindow.s(24)
-                        Layout.preferredWidth: statusLabel.implicitWidth + osdWindow.s(18)
-                        radius: osdWindow.s(6)
-                        color: osdWindow.isToggleActive ? Qt.rgba(osdWindow.toggleActiveColor.r, osdWindow.toggleActiveColor.g, osdWindow.toggleActiveColor.b, 0.2) : ThemeBackend.surface1
-                        border.width: 1
-                        border.color: osdWindow.isToggleActive ? osdWindow.toggleActiveColor : "transparent"
+                        Layout.preferredWidth: implicitWidth
+                        height: osdWindow.s(24)
+                        cornerRadius: osdWindow.s(6)
+                        horizontalPadding: osdWindow.s(10)
+                        buttonText: osdWindow.toggleStatus
+                        textFontSize: osdWindow.s(11)
+                        accentColor: osdWindow.isToggleActive ? osdWindow.toggleActiveColor : ThemeBackend.surface1
+                        textColor: osdWindow.isToggleActive ? ThemeBackend.base : ThemeBackend.subtext0
 
-                        Text {
-                            id: statusLabel
-                            anchors.centerIn: parent
-                            text: osdWindow.toggleStatus
-                            font.family: ThemeBackend.fontFamily
-                            font.pixelSize: osdWindow.s(11)
-                            font.bold: true
-                            color: osdWindow.isToggleActive ? osdWindow.toggleActiveColor : ThemeBackend.overlay0
+                        onClicked: {
+                            OsdController.restartTimer();
+                            if (osdWindow.kind === "airplane") {
+                                if (osdWindow.isToggleActive) {
+                                    Networking.wifiEnabled = true;
+                                    if (Bluetooth.defaultAdapter) Bluetooth.defaultAdapter.enabled = true;
+                                } else {
+                                    Networking.wifiEnabled = false;
+                                    if (Bluetooth.defaultAdapter) Bluetooth.defaultAdapter.enabled = false;
+                                }
+                            }
                         }
                     }
                 }
@@ -837,6 +855,8 @@ PanelWindow {
                     height: osdWindow.s(18)
                     anchors.left: parent.left
                     anchors.leftMargin: osdWindow.s(58)
+                    anchors.right: parent.right
+                    anchors.rightMargin: osdWindow.s(16)
                     anchors.verticalCenter: parent.verticalCenter
                     opacity: Math.max(0.0, Math.min(1.0, (osdContainer.animProgress - 0.2) / 0.8))
                     visible: !osdWindow.isToggleKind && opacity > 0.01

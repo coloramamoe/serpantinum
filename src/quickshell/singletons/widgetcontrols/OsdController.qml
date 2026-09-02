@@ -57,7 +57,7 @@ Item {
 
     Timer {
         id: initTimer
-        interval: 1000
+        interval: 800
         running: true
         repeat: false
         onTriggered: {
@@ -125,29 +125,22 @@ Item {
         command: ["bash", Caching.qsDir + "/../scripts/kb_locks.sh", "watch"]
         stdout: SplitParser {
             onRead: data => {
-                kbFetchDebounce.restart();
-            }
-        }
-    }
+                let line = data.trim();
+                if (!line) return;
 
-    Timer {
-        id: kbFetchDebounce
-        interval: 30
-        repeat: false
-        onTriggered: {
-            kbFetcher.running = false;
-            kbFetcher.running = true;
-        }
-    }
-
-    Timer {
-        id: kbPollTimer
-        interval: 200
-        running: true
-        repeat: true
-        onTriggered: {
-            if (controller.isInitialized && !kbFetcher.running) {
-                kbFetcher.running = true;
+                let parts = line.split(/\s+/);
+                if (parts.length >= 2) {
+                    let k = parts[0];
+                    let stateStr = parts[1];
+                    let stateNum = (stateStr === "1" || stateStr === "on") ? 1 : 0;
+                    if (k === "capslock") {
+                        controller.lastCapsLock = stateNum;
+                        controller.show("capslock", stateNum === 1 ? "on" : "off");
+                    } else if (k === "numlock") {
+                        controller.lastNumLock = stateNum;
+                        controller.show("numlock", stateNum === 1 ? "on" : "off");
+                    }
+                }
             }
         }
     }
@@ -162,23 +155,9 @@ Item {
                 if (out.length >= 2) {
                     let caps = parseInt(out[0]);
                     let num = parseInt(out[1]);
-                    if (!isNaN(caps) && !isNaN(num)) {
-                        if (!controller.kbInitialized) {
-                            controller.lastCapsLock = caps;
-                            controller.lastNumLock = num;
-                            controller.kbInitialized = true;
-                            return;
-                        }
-                        if (controller.isInitialized) {
-                            if (caps !== controller.lastCapsLock) {
-                                controller.lastCapsLock = caps;
-                                controller.show("capslock", caps === 1 ? "on" : "off");
-                            } else if (num !== controller.lastNumLock) {
-                                controller.lastNumLock = num;
-                                controller.show("numlock", num === 1 ? "on" : "off");
-                            }
-                        }
-                    }
+                    if (!isNaN(caps)) controller.lastCapsLock = caps;
+                    if (!isNaN(num)) controller.lastNumLock = num;
+                    controller.kbInitialized = true;
                 }
             }
         }
@@ -197,7 +176,7 @@ Item {
 
     Timer {
         id: briFetchDebounce
-        interval: 50
+        interval: 30
         repeat: false
         onTriggered: {
             briFetcher.running = false;
