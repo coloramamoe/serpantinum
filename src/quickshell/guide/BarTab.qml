@@ -344,7 +344,7 @@ Item {
                     var info = getModuleInfo(arr[i]);
                     info.groupId = "";
                     model.append(info);
-                    used[arr[i][j]] = true;
+                    used[arr[i]] = true;
                 }
             }
         }
