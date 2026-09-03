@@ -32,7 +32,7 @@ Rectangle {
     Component.onDestruction: SysData.unsubscribe()
     onIsSysVisibleChanged: updateSubscription()
 
-    x: barWindow ? barWindow.baseOffsetX : 0
+    x: (barWindow && barWindow.baseOffsetX !== undefined) ? barWindow.baseOffsetX : 0
     y: targetY
     Behavior on y {
         enabled: barWindow && barWindow.startupCascadeFinished
@@ -238,7 +238,7 @@ Rectangle {
         anchors.fill: parent
         cursorShape: Qt.PointingHandCursor
         onClicked: {
-            Quickshell.execDetached(["quickshell", "-p", Caching.mainQml, "ipc", "call", "floating", "showSystemUsage"]);
+            FloatingController.showSystemUsage(sideSysMonRoot.barWindow ? sideSysMonRoot.barWindow.screen : null);
         }
     }
 }
