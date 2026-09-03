@@ -34,7 +34,7 @@ Item {
     }
 
     function requestBtRebuild() {
-        btRebuildDebounce.restart();
+        if (window.visible) btRebuildDebounce.restart();
     }
 
     function updateBtDevicesSnapshot() {
@@ -124,15 +124,16 @@ Item {
 
     onVisibleChanged: {
         if (visible) {
+            modeFile.reload();
             forceActiveFocus();
             focusTimer.restart();
             resetAndPlayIntro();
             window.startBtScan();
             window.findDevices();
+            window.rebuildEthData();
+            window.rebuildWifiData();
+            window.rebuildBtData(false);
             window.updateBtDevicesSnapshot();
-            if (window.activeMode === "wifi") window.rebuildWifiData();
-            else if (window.activeMode === "bt") window.rebuildBtData(false);
-            else if (window.activeMode === "eth") window.rebuildEthData();
             window.fetchIpData();
             window.fetchFreqData();
             if (window.activeMode === "bt" && !btProfilePoller.running) btProfilePoller.running = true;
@@ -144,6 +145,12 @@ Item {
             btConnectSimTimer.stop();
             busyTimeout.stop();
             failClearTimer.stop();
+            btSnapshotDebounce.stop();
+            btRebuildDebounce.stop();
+            powerMinSpinTimer.stop();
+            introPlayTimer.stop();
+            focusTimer.stop();
+            mainPollerTimer.stop();
             window.pendingWifiId = "";
             window.pendingWifiSsid = "";
             window.hoveredCardCount = 0;
@@ -180,6 +187,7 @@ Item {
         visible: false
         Connections {
             target: Bluetooth.defaultAdapter || null
+            enabled: window.visible
             ignoreUnknownSignals: true
             function onEnabledChanged() {
                 btSnapshotDebounce.restart();
@@ -191,6 +199,7 @@ Item {
         }
         Connections {
             target: (Bluetooth.defaultAdapter && Bluetooth.defaultAdapter.devices) ? Bluetooth.defaultAdapter.devices : null
+            enabled: window.visible
             ignoreUnknownSignals: true
             function onObjectInsertedPost(object, index) {
                 btSnapshotDebounce.restart();
@@ -201,11 +210,12 @@ Item {
         }
         Repeater {
             id: btDeviceRepeater
-            model: window.btDevicesSnapshot
+            model: window.visible ? window.btDevicesSnapshot : null
             Item {
                 property var device: modelData
                 Connections {
                     target: device || null
+                    enabled: window.visible
                     ignoreUnknownSignals: true
                     function onConnectedChanged() { window.requestBtRebuild(); }
                     function onBatteryChanged() { window.requestBtRebuild(); }
@@ -227,6 +237,7 @@ Item {
         visible: false
         Connections {
             target: Networking
+            enabled: window.visible
             ignoreUnknownSignals: true
             function onWifiEnabledChanged() { window.rebuildWifiData(); }
             function onDevicesChanged() {
@@ -237,7 +248,7 @@ Item {
         }
         Repeater {
             id: netDeviceRepeater
-            model: Networking.devices
+            model: window.visible ? Networking.devices : null
             Item {
                 property var device: modelData
 
@@ -258,12 +269,14 @@ Item {
 
                 Connections {
                     target: device || null
+                    enabled: window.visible
                     ignoreUnknownSignals: true
                     function onStateChanged() { window.isEthDevice(device) ? window.rebuildEthData() : window.rebuildWifiData(); }
                     function onConnectedChanged() { window.isEthDevice(device) ? window.rebuildEthData() : window.rebuildWifiData(); }
                 }
                 Connections {
                     target: (device && window.isEthDevice(device)) ? device : null
+                    enabled: window.visible
                     ignoreUnknownSignals: true
                     function onHasLinkChanged() { window.rebuildEthData(); }
                     function onLinkSpeedChanged() { window.rebuildEthData(); }
@@ -272,11 +285,12 @@ Item {
         }
         Repeater {
             id: wifiNetworkRepeater
-            model: window.wifiDevice ? window.wifiDevice.networks : null
+            model: (window.visible && window.wifiDevice) ? window.wifiDevice.networks : null
             Item {
                 property var network: modelData
                 Connections {
                     target: network || null
+                    enabled: window.visible
                     ignoreUnknownSignals: true
                     function onSignalStrengthChanged() { window.rebuildWifiData(); }
                     function onStateChanged() { window.rebuildWifiData(); }
@@ -482,7 +496,7 @@ Item {
     FileView {
         id: modeFile
         path: window.modeFilePath
-        watchChanges: true
+        watchChanges: window.visible
         onFileChanged: reload()
         onLoaded: {
             let mode = text().trim();
@@ -604,7 +618,7 @@ Item {
     property var coreVisualIndices: [0, 0, 0, 0, 0]
     property int activeCoreCount: 0
     property real smoothedActiveCoreCount: activeCoreCount
-    Behavior on smoothedActiveCoreCount { NumberAnimation { duration: 1000; easing.type: Easing.InOutExpo } }
+    Behavior on smoothedActiveCoreCount { enabled: window.visible; NumberAnimation { duration: 1000; easing.type: Easing.InOutExpo } }
 
     function syncCores() {
         let list = [];
@@ -827,7 +841,7 @@ Item {
     readonly property bool isLogicMultiState: window.activeMode === "bt" && window.activeCoreCount > 1
 
     property real multiTransitionState: (isLogicMultiState && window.currentPower) ? 1.0 : 0.0
-    Behavior on multiTransitionState { NumberAnimation { duration: 1200; easing.type: Easing.InOutExpo } }
+    Behavior on multiTransitionState { enabled: window.visible; NumberAnimation { duration: 1200; easing.type: Easing.InOutExpo } }
 
     function updateInfoNodes() {
         let nodes = [];
@@ -1262,7 +1276,7 @@ Item {
     }
 
     property real introState: 0.0
-    Behavior on introState { NumberAnimation { duration: 1500; easing.type: Easing.OutCubic } }
+    Behavior on introState { enabled: window.visible; NumberAnimation { duration: 1500; easing.type: Easing.OutCubic } }
 
     component LoadingDots : Row {
         spacing: window.s(4)
@@ -1273,7 +1287,7 @@ Item {
                 width: window.s(5); height: window.s(5); radius: window.s(2.5); color: dotCol
                 SequentialAnimation on y {
                     loops: Animation.Infinite
-                    running: window.visible
+                    running: window.visible && parent.visible
                     PauseAnimation { duration: index * 100 }
                     NumberAnimation { from: 0; to: window.s(-5); duration: 250; easing.type: Easing.OutSine }
                     NumberAnimation { from: window.s(-5); to: 0; duration: 250; easing.type: Easing.InSine }
@@ -1285,6 +1299,8 @@ Item {
 
     Item {
         anchors.fill: parent
+        visible: window.visible
+        enabled: window.visible
 
         Rectangle {
             anchors.fill: parent
@@ -1302,8 +1318,8 @@ Item {
                 color: window.isDisconnectHovered && window.currentConn
                     ? ThemeBackend.red
                     : (window.currentConn ? window.activeColor : ThemeBackend.surface2)
-                Behavior on color { ColorAnimation { duration: 300; easing.type: Easing.OutQuad } }
-                Behavior on opacity { NumberAnimation { duration: 300; easing.type: Easing.OutQuad } }
+                Behavior on color { enabled: window.visible; ColorAnimation { duration: 300; easing.type: Easing.OutQuad } }
+                Behavior on opacity { enabled: window.visible; NumberAnimation { duration: 300; easing.type: Easing.OutQuad } }
                 visible: opacity > 0.005
             }
 
@@ -1315,8 +1331,8 @@ Item {
                 color: window.isDisconnectHovered && window.currentConn
                     ? Qt.darker(ThemeBackend.red, 1.25)
                     : (window.currentConn ? window.activeGradientSecondary : ThemeBackend.surface1)
-                Behavior on color { ColorAnimation { duration: 300; easing.type: Easing.OutQuad } }
-                Behavior on opacity { NumberAnimation { duration: 300; easing.type: Easing.OutQuad } }
+                Behavior on color { enabled: window.visible; ColorAnimation { duration: 300; easing.type: Easing.OutQuad } }
+                Behavior on opacity { enabled: window.visible; NumberAnimation { duration: 300; easing.type: Easing.OutQuad } }
                 visible: opacity > 0.002
             }
 
@@ -1326,9 +1342,9 @@ Item {
                 anchors.bottomMargin: window.s(65)
                 opacity: window.currentPower ? 1.0 : 0.0
                 scale: window.currentPower ? 1.0 : 1.05
-                visible: opacity > 0.01
-                Behavior on opacity { NumberAnimation { duration: 600; easing.type: Easing.InOutQuad } }
-                Behavior on scale { NumberAnimation { duration: 600; easing.type: Easing.OutCubic } }
+                visible: window.visible && opacity > 0.01
+                Behavior on opacity { enabled: window.visible; NumberAnimation { duration: 600; easing.type: Easing.InOutQuad } }
+                Behavior on scale { enabled: window.visible; NumberAnimation { duration: 600; easing.type: Easing.OutCubic } }
 
                 Repeater {
                     model: 3
@@ -1342,11 +1358,11 @@ Item {
                         border.color: Object.keys(window.disconnectingDevices).length > 0 ? ThemeBackend.red : window.activeColor
                         border.width: Object.keys(window.disconnectingDevices).length > 0 ? window.s(2) : 1
 
-                        Behavior on border.color { ColorAnimation { duration: 150 } }
-                        Behavior on border.width { NumberAnimation { duration: 150 } }
+                        Behavior on border.color { enabled: window.visible; ColorAnimation { duration: 150 } }
+                        Behavior on border.width { enabled: window.visible; NumberAnimation { duration: 150 } }
 
                         opacity: Object.keys(window.disconnectingDevices).length > 0 ? 0.2 : (window.currentConn ? 0.08 - (index * 0.02) : 0.03)
-                        Behavior on opacity { NumberAnimation { duration: 150 } }
+                        Behavior on opacity { enabled: window.visible; NumberAnimation { duration: 150 } }
                     }
                 }
             }
@@ -1357,11 +1373,11 @@ Item {
                 anchors.bottomMargin: window.s(65)
                 z: 0
                 opacity: (window.currentConn && window.showInfoView && window.currentPower) ? 1.0 : 0.0
-                visible: opacity > 0.01
-                Behavior on opacity { NumberAnimation { duration: 500 } }
+                visible: window.visible && opacity > 0.01
+                Behavior on opacity { enabled: window.visible; NumberAnimation { duration: 500 } }
 
                 property real scaleTrigger: window.s(1)
-                onScaleTriggerChanged: requestPaint()
+                onScaleTriggerChanged: if (window.visible) requestPaint()
 
                 Timer {
                     id: lightningTimer
@@ -1504,7 +1520,7 @@ Item {
                         property real activeTransition: isReallyActive ? 1.0 : 0.0
 
                         Behavior on activeTransition {
-                            enabled: window.introState >= 1.0;
+                            enabled: window.visible && window.introState >= 1.0;
                             NumberAnimation { duration: 1400; easing.type: Easing.OutExpo }
                         }
 
@@ -1515,7 +1531,7 @@ Item {
 
                         property real myBaseAngle: (window.coreVisualIndices[index] / Math.max(1, window.activeCoreCount)) * Math.PI * 2
                         property real animatedBaseAngle: myBaseAngle
-                        Behavior on animatedBaseAngle { NumberAnimation { duration: 1000; easing.type: Easing.InOutExpo } }
+                        Behavior on animatedBaseAngle { enabled: window.visible; NumberAnimation { duration: 1000; easing.type: Easing.InOutExpo } }
 
                         property real coreOrbitAngle: window.globalOrbitAngle * 1.5 + animatedBaseAngle
 
@@ -1540,13 +1556,13 @@ Item {
                         MultiEffect {
                             source: centralCore
                             anchors.fill: centralCore
-                            shadowEnabled: window.currentPower ? 0.5 : 0.0
+                            shadowEnabled: window.visible && window.currentPower
                             shadowColor: "#000000"
                             shadowOpacity: window.currentPower ? 0.5 : 0.0
                             shadowBlur: 1.2
                             shadowVerticalOffset: window.s(5)
                             z: -1
-                            Behavior on shadowOpacity { NumberAnimation { duration: 600 } }
+                            Behavior on shadowOpacity { enabled: window.visible; NumberAnimation { duration: 600 } }
                         }
 
                         Rectangle {
@@ -1577,7 +1593,7 @@ Item {
                                         if (centralCore.isDangerState && window.currentConn && !showPassword) return Qt.tint(Qt.lighter(window.activeColor, 1.15), Qt.rgba(ThemeBackend.red.r, ThemeBackend.red.g, ThemeBackend.red.b, 0.75));
                                         return window.currentConn || showPassword ? Qt.lighter(window.activeColor, 1.15) : ThemeBackend.surface0;
                                     }
-                                    Behavior on color { ColorAnimation { duration: 300 } }
+                                    Behavior on color { enabled: window.visible; ColorAnimation { duration: 300 } }
                                 }
                                 GradientStop {
                                     position: 1.0
@@ -1587,7 +1603,7 @@ Item {
                                         if (centralCore.isDangerState && window.currentConn && !showPassword) return Qt.tint(window.activeColor, Qt.rgba(ThemeBackend.red.r, ThemeBackend.red.g, ThemeBackend.red.b, 0.75));
                                         return window.currentConn || showPassword ? window.activeColor : ThemeBackend.base;
                                     }
-                                    Behavior on color { ColorAnimation { duration: 300 } }
+                                    Behavior on color { enabled: window.visible; ColorAnimation { duration: 300 } }
                                 }
                             }
 
@@ -1598,7 +1614,7 @@ Item {
                                 return window.currentConn || showPassword ? Qt.lighter(window.activeColor, 1.1) : ThemeBackend.surface1;
                             }
                             border.width: window.s(2)
-                            Behavior on border.color { ColorAnimation { duration: 300 } }
+                            Behavior on border.color { enabled: window.visible; ColorAnimation { duration: 300 } }
 
                             Rectangle {
                                 anchors.fill: parent
@@ -1611,11 +1627,11 @@ Item {
                             Canvas {
                                 id: coreWave
                                 anchors.fill: parent
-                                visible: centralCore.disconnectFill > 0
+                                visible: window.visible && centralCore.disconnectFill > 0
                                 opacity: 0.95
 
                                 property real scaleTrigger: window.s(1)
-                                onScaleTriggerChanged: requestPaint()
+                                onScaleTriggerChanged: if (window.visible) requestPaint()
 
                                 property real wavePhase: 0.0
                                 NumberAnimation on wavePhase {
@@ -1623,8 +1639,8 @@ Item {
                                     loops: Animation.Infinite
                                     from: 0; to: Math.PI * 2; duration: 800
                                 }
-                                onWavePhaseChanged: requestPaint()
-                                Connections { target: centralCore; function onDisconnectFillChanged() { coreWave.requestPaint() } }
+                                onWavePhaseChanged: if (window.visible) requestPaint()
+                                Connections { target: centralCore; enabled: window.visible; function onDisconnectFillChanged() { if (window.visible) coreWave.requestPaint() } }
 
                                 onPaint: {
                                     var ctx = getContext("2d");
@@ -1673,8 +1689,8 @@ Item {
                                 color: centralCore.isDangerState && window.currentConn && !showPassword ? ThemeBackend.red : window.activeColor
                                 opacity: (window.currentConn || showPassword) && !isMyDisconnecting ? (centralCore.isDangerState && !showPassword ? 0.45 : 0.15) : 0.0
                                 z: -1
-                                Behavior on color { ColorAnimation { duration: 200 } }
-                                Behavior on opacity { NumberAnimation { duration: 300 } }
+                                Behavior on color { enabled: window.visible; ColorAnimation { duration: 200 } }
+                                Behavior on opacity { enabled: window.visible; NumberAnimation { duration: 300 } }
 
                                 SequentialAnimation on scale {
                                     loops: Animation.Infinite; running: window.visible && (window.currentConn || showPassword)
@@ -1714,7 +1730,7 @@ Item {
                                 anchors.fill: parent
                                 opacity: showScanning ? 1.0 : 0.0
                                 visible: opacity > 0.01
-                                Behavior on opacity { NumberAnimation { duration: 400 } }
+                                Behavior on opacity { enabled: window.visible; NumberAnimation { duration: 400 } }
 
                                 Repeater {
                                     model: 3
@@ -1754,7 +1770,7 @@ Item {
                                 spacing: window.s(8)
                                 visible: showEthDisconnected
                                 opacity: visible ? 1.0 : 0.0
-                                Behavior on opacity { NumberAnimation { duration: 300 } }
+                                Behavior on opacity { enabled: window.visible; NumberAnimation { duration: 300 } }
                                 Text { Layout.alignment: Qt.AlignHCenter; font.family: ThemeBackend.fontFamily; font.pixelSize: window.s(40); color: ThemeBackend.overlay0; text: "󰈂" }
                                 Text { Layout.alignment: Qt.AlignHCenter; font.family: ThemeBackend.fontFamily; font.weight: Font.Bold; font.pixelSize: window.s(13); color: ThemeBackend.overlay0; text: window.currentPowerPending ? (window.expectedEthPower === "on" ? (I18n.t("network.status.powering_on") || "Powering on...") : (I18n.t("network.status.powering_off") || "Powering off...")) : (I18n.t("network.status.disconnected") || "Disconnected") }
                             }
@@ -1765,8 +1781,8 @@ Item {
                                 opacity: showPassword ? 1.0 : 0.0
                                 visible: opacity > 0.01
                                 scale: showPassword ? 1.0 : 0.8
-                                Behavior on scale { NumberAnimation { duration: 400; easing.type: Easing.OutBack; easing.overshoot: 1.5 } }
-                                Behavior on opacity { NumberAnimation { duration: 300; easing.type: Easing.OutSine } }
+                                Behavior on scale { enabled: window.visible; NumberAnimation { duration: 400; easing.type: Easing.OutBack; easing.overshoot: 1.5 } }
+                                Behavior on opacity { enabled: window.visible; NumberAnimation { duration: 300; easing.type: Easing.OutSine } }
 
                                 ColumnLayout {
                                     anchors.centerIn: parent
@@ -1787,7 +1803,7 @@ Item {
                                         color: ThemeBackend.surface0
                                         border.color: wifiPasswordField.activeFocus ? ThemeBackend.crust : "transparent"
                                         border.width: 1
-                                        Behavior on border.color { ColorAnimation { duration: 200 } }
+                                        Behavior on border.color { enabled: window.visible; ColorAnimation { duration: 200 } }
 
                                         TextInput {
                                             id: wifiPasswordField
@@ -1818,8 +1834,8 @@ Item {
                                 opacity: showConnected ? 1.0 : 0.0
                                 visible: opacity > 0.01
                                 scale: showConnected ? 1.0 : 0.95
-                                Behavior on scale { NumberAnimation { duration: 400; easing.type: Easing.OutBack; easing.overshoot: 1.2 } }
-                                Behavior on opacity { NumberAnimation { duration: 300; easing.type: Easing.OutSine } }
+                                Behavior on scale { enabled: window.visible; NumberAnimation { duration: 400; easing.type: Easing.OutBack; easing.overshoot: 1.2 } }
+                                Behavior on opacity { enabled: window.visible; NumberAnimation { duration: 300; easing.type: Easing.OutSine } }
 
                                 ColumnLayout {
                                     id: baseCoreText
@@ -1833,7 +1849,7 @@ Item {
                                         font.pixelSize: window.s(40) - (window.s(12) * coreContainer.multiShift)
                                         color: isMyDisconnecting ? ThemeBackend.overlay1 : ThemeBackend.crust
                                         text: isMyDisconnecting ? "" : (coreMa.containsMouse ? (window.activeMode === "wifi" ? "󰖪" : (window.activeMode === "eth" ? "󰈂" : "󰂲")) : (coreContainer.myDevice ? (coreContainer.myDevice.icon || (window.activeMode === "wifi" ? "󰤨" : (window.activeMode === "eth" ? "󰈀" : "󰂯"))) : ""))
-                                        Behavior on color { ColorAnimation { duration: 200 } }
+                                        Behavior on color { enabled: window.visible; ColorAnimation { duration: 200 } }
                                     }
                                     LoadingDots { Layout.alignment: Qt.AlignHCenter; visible: isMyDisconnecting; dotCol: ThemeBackend.overlay1 }
                                     Text {
@@ -1846,7 +1862,7 @@ Item {
                                         color: isMyDisconnecting ? ThemeBackend.overlay1 : ThemeBackend.crust
                                         text: coreContainer.myDevice ? (window.activeMode === "wifi" ? (coreContainer.myDevice.ssid || "") : (coreContainer.myDevice.name || "")) : ""
                                         elide: Text.ElideRight
-                                        Behavior on color { ColorAnimation { duration: 200 } }
+                                        Behavior on color { enabled: window.visible; ColorAnimation { duration: 200 } }
                                     }
                                     Text {
                                         id: coreStatusText
@@ -1854,7 +1870,7 @@ Item {
                                         font.family: ThemeBackend.fontFamily; font.weight: Font.Bold; font.pixelSize: window.s(10)
                                         color: isMyDisconnecting ? ThemeBackend.overlay1 : (coreMa.containsMouse ? ThemeBackend.crust : "#99000000")
                                         text: isMyDisconnecting ? (I18n.t("network.status.disconnecting") || "Disconnecting...") : (centralCore.disconnectFill > 0.01 ? (I18n.t("network.status.hold") || "Hold to Disconnect") : (I18n.t("network.status.connected") || "Connected"))
-                                        Behavior on color { ColorAnimation { duration: 200 } }
+                                        Behavior on color { enabled: window.visible; ColorAnimation { duration: 200 } }
                                     }
                                 }
 
@@ -1906,7 +1922,8 @@ Item {
                             MouseArea {
                                 id: coreMa
                                 anchors.fill: parent
-                                hoverEnabled: true
+                                enabled: window.visible
+                                hoverEnabled: window.visible
                                 cursorShape: window.currentConn && !isMyDisconnecting && !showPassword ? Qt.PointingHandCursor : Qt.ArrowCursor
 
                                 onEntered: {
@@ -1990,7 +2007,7 @@ Item {
                 anchors.fill: parent
                 opacity: window.currentPower ? 1.0 : 0.0
                 visible: opacity > 0.01
-                Behavior on opacity { NumberAnimation { duration: 600; easing.type: Easing.InOutQuad } }
+                Behavior on opacity { enabled: window.visible; NumberAnimation { duration: 600; easing.type: Easing.InOutQuad } }
 
                 Repeater {
                     id: orbitRepeater
@@ -2003,10 +2020,10 @@ Item {
                         property bool isLoaded: false
                         opacity: (isLoaded && window.currentPower) ? 1.0 : 0.0
                         visible: opacity > 0.01
-                        Behavior on opacity { NumberAnimation { duration: 400; easing.type: Easing.OutQuint } }
+                        Behavior on opacity { enabled: window.visible; NumberAnimation { duration: 400; easing.type: Easing.OutQuint } }
 
                         property real entryAnim: isLoaded ? 1.0 : 0.0
-                        Behavior on entryAnim { NumberAnimation { duration: 600; easing.type: Easing.OutBack } }
+                        Behavior on entryAnim { enabled: window.visible; NumberAnimation { duration: 600; easing.type: Easing.OutBack } }
 
                         Connections {
                             target: window
@@ -2075,14 +2092,14 @@ Item {
 
                         property real targetSingleBaseAngle: (index / Math.max(1, orbitRepeater.count)) * Math.PI * 2
                         property real singleBaseAngle: targetSingleBaseAngle
-                        Behavior on singleBaseAngle { NumberAnimation { duration: 800; easing.type: Easing.OutExpo } }
+                        Behavior on singleBaseAngle { enabled: window.visible; NumberAnimation { duration: 800; easing.type: Easing.OutExpo } }
 
                         property real singleLiveAngle: (window.globalOrbitAngle * 1.5) + singleBaseAngle
 
                         property real arcSpread: Math.PI * 0.8
                         property real targetNodeOffset: (siblingsCount > 1) ? ((localIndex / (siblingsCount - 1)) - 0.5) * arcSpread : 0
                         property real nodeOffset: targetNodeOffset
-                        Behavior on nodeOffset { NumberAnimation { duration: 800; easing.type: Easing.OutExpo } }
+                        Behavior on nodeOffset { enabled: window.visible; NumberAnimation { duration: 800; easing.type: Easing.OutExpo } }
 
                         property real parentCoreAngle: (window.globalOrbitAngle * 1.5) + parentBaseAngle
                         property real multiLiveAngle: myParentIdx === -1 ? singleLiveAngle : (parentCoreAngle + nodeOffset)
@@ -2090,7 +2107,7 @@ Item {
                         property int ringIndex: (typeof isInfoNode !== "undefined" && isInfoNode) ? 0 : index % 2
                         property real targetRingOffset: ringIndex * window.s(32)
                         property real ringOffset: targetRingOffset
-                        Behavior on ringOffset { NumberAnimation { duration: 800; easing.type: Easing.OutExpo } }
+                        Behavior on ringOffset { enabled: window.visible; NumberAnimation { duration: 800; easing.type: Easing.OutExpo } }
 
                         property real singleRadX: (typeof isInfoNode !== "undefined" && isInfoNode) ? window.s(253) : window.s(260) + ringOffset
                         property real singleRadY: (typeof isInfoNode !== "undefined" && isInfoNode) ? window.s(154) : window.s(160) + ringOffset
@@ -2103,7 +2120,7 @@ Item {
                         property real currentAngle: (singleLiveAngle * (1 - unifiedRatio)) + (multiLiveAngle * unifiedRatio)
 
                         property real pwrDrift: window.currentPower ? 0 : window.s(32)
-                        Behavior on pwrDrift { NumberAnimation { duration: 600; easing.type: Easing.OutQuint } }
+                        Behavior on pwrDrift { enabled: window.visible; NumberAnimation { duration: 600; easing.type: Easing.OutQuint } }
 
                         property real animRadX: (currentRadX + pwrDrift) * entryAnim
                         property real animRadY: (currentRadY + pwrDrift) * entryAnim
@@ -2133,11 +2150,12 @@ Item {
                         property real currentPopScale: isMyActionable ? fillBtn.popScale : clickBtn.popScale
 
                         scale: (!isLoaded ? 0.0 : (isHoveredOrHighlighted ? dynamicScale * 1.025 : dynamicScale)) * currentPopScale
-                        Behavior on scale { NumberAnimation { duration: 250; easing.type: Easing.OutQuint } }
+                        Behavior on scale { enabled: window.visible; NumberAnimation { duration: 250; easing.type: Easing.OutQuint } }
                         z: cardHoverHandler.hovered ? 10 : index
 
                         HoverHandler {
                             id: cardHoverHandler
+                            enabled: window.visible
                             onHoveredChanged: {
                                 if (hovered) window.hoveredCardCount++;
                                 else window.hoveredCardCount = Math.max(0, window.hoveredCardCount - 1);
@@ -2287,7 +2305,7 @@ Item {
                                         font.pixelSize: window.s(18)
                                         color: dynamicTextColor
                                         anchors.verticalCenter: parent.verticalCenter
-                                        Behavior on color { ColorAnimation { duration: 200 } }
+                                        Behavior on color { enabled: window.visible; ColorAnimation { duration: 200 } }
                                     }
 
                                     Item {
@@ -2313,7 +2331,7 @@ Item {
                                                     font.weight: Font.Bold
                                                     font.pixelSize: window.s(12)
                                                     color: dynamicTextColor
-                                                    Behavior on color { ColorAnimation { duration: 200 } }
+                                                    Behavior on color { enabled: window.visible; ColorAnimation { duration: 200 } }
 
                                                     onTextChanged: {
                                                         marqueeContainer.x = 0;
@@ -2444,7 +2462,8 @@ Item {
                 textColor: ThemeBackend.text
                 activeTextColor: ThemeBackend.crust
                 switchSound: "network/switch.wav"
-                visible: availableModes.length > 0
+                visible: window.visible && availableModes.length > 0
+                enabled: window.visible
 
                 readonly property var availableModes: {
                     let m = [];
@@ -2505,7 +2524,7 @@ Item {
 
                 property real pwrMorph: window.currentPower ? 1.0 : 0.0
                 Behavior on pwrMorph {
-                    enabled: window.powerAnimAllowed;
+                    enabled: window.powerAnimAllowed && window.visible;
                     NumberAnimation { duration: 800; easing.type: Easing.InOutQuint }
                 }
 
@@ -2530,20 +2549,20 @@ Item {
                     radius: width / 2
 
                     scale: pwrMa.pressed ? 0.95 : (pwrMa.containsMouse ? 1.05 : 1.0)
-                    Behavior on scale { NumberAnimation { duration: 300; easing.type: Easing.OutCubic } }
+                    Behavior on scale { enabled: window.visible; NumberAnimation { duration: 300; easing.type: Easing.OutCubic } }
 
                     color: window.currentPower ? "transparent" : (pwrMa.containsMouse ? Qt.lighter(ThemeBackend.base, 1.6) : Qt.lighter(ThemeBackend.base, 1.3))
-                    Behavior on color { ColorAnimation { duration: 200 } }
+                    Behavior on color { enabled: window.visible; ColorAnimation { duration: 200 } }
 
                     border.color: window.currentPowerPending ? window.activeColor : (window.currentPower ? "transparent" : (pwrMa.containsMouse ? Qt.lighter(ThemeBackend.base, 1.45) : Qt.lighter(ThemeBackend.base, 1.25)))
                     border.width: 1
-                    Behavior on border.color { enabled: window.powerAnimAllowed; ColorAnimation { duration: 800; easing.type: Easing.InOutQuint } }
+                    Behavior on border.color { enabled: window.powerAnimAllowed && window.visible; ColorAnimation { duration: 800; easing.type: Easing.InOutQuint } }
 
                     Rectangle {
                         anchors.fill: parent
                         radius: parent.radius
                         opacity: window.currentPower ? 1.0 : 0.0
-                        Behavior on opacity { enabled: window.powerAnimAllowed; NumberAnimation { duration: 800; easing.type: Easing.InOutQuint } }
+                        Behavior on opacity { enabled: window.powerAnimAllowed && window.visible; NumberAnimation { duration: 800; easing.type: Easing.InOutQuint } }
                         gradient: Gradient {
                             orientation: Gradient.Horizontal
                             GradientStop { position: 0.0; color: Qt.lighter(window.activeColor, 1.15) }
@@ -2559,7 +2578,7 @@ Item {
                         scale: 1.0 + ((20.0 / 54.0) - 1.0) * powerToggleContainer.pwrMorph
                         color: window.currentPower ? ThemeBackend.crust : ThemeBackend.subtext0
                         text: window.currentPowerPending ? "󰑮" : ""
-                        Behavior on color { enabled: window.powerAnimAllowed; ColorAnimation { duration: 800; easing.type: Easing.InOutQuint } }
+                        Behavior on color { enabled: window.powerAnimAllowed && window.visible; ColorAnimation { duration: 800; easing.type: Easing.InOutQuint } }
 
                         RotationAnimation {
                             target: pwrIcon
@@ -2577,7 +2596,8 @@ Item {
                     MouseArea {
                         id: pwrMa
                         anchors.fill: parent
-                        hoverEnabled: true
+                        enabled: window.visible
+                        hoverEnabled: window.visible
                         cursorShape: Qt.PointingHandCursor
                         onClicked: {
                             if (window.pendingWifiId !== "") { window.pendingWifiId = ""; window.pendingWifiSsid = ""; }
