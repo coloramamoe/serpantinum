@@ -1,3 +1,22 @@
+### 2.0.7
+
+- feat: a series of optimizations tied to visibility of widgets
+- docs: add an update note. Solves #218
+- fix: fix a duplication of modules bug
+- make sure first launch correctly applies the wallpaper
+- feat: a series of performance optimizations for components
+- feat: make the first launch script a singleton instead
+- fix a bug where location.sh was replaced by a single function
+- i18n: add a missing translation for workspaces.desc
+- feat: make the Sidebar able to change its height from the bartab settings like the topbar
+- style: make the osd capslock, numlock and airplane mode display in the bottom center when the bar is on the side
+- fix: clipboard search bar getting swallowed on the sides
+- fix: make the order of calendar words depend on the language
+- fix: change fullDate property to use toLocaleDateString (#214)
+- fix: update targetMonthName formatting to use locale (#213)
+- Fix installation script URL formatting in README (#215)
+- fix: prevent niri workspaces variation from infinite looping
+
 ### 2.0.6-1
 
 - Fix disc to desc typo and general improvements (#210)
